@@ -20,4 +20,9 @@ interface VoiceOutput {
      * True if audio is actively being synthesized or played.
      */
     val isSpeaking: Boolean
+
+    /**
+     * Releases any underlying platform resources (e.g. TextToSpeech engine).
+     */
+    fun release() {}
 }

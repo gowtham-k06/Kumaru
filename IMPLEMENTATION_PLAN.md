@@ -27,7 +27,7 @@ graph TD
 
 1. **API Key Injection & Security**:
    - In `app/build.gradle.kts`, load `local.properties` to read `GEMINI_API_KEY` (or `gemini.api.key`) and `gemini.model`.
-   - Inject `BuildConfig.GEMINI_API_KEY` and `BuildConfig.GEMINI_MODEL` (`gemini-2.5-flash-lite`).
+   - Inject `BuildConfig.GEMINI_API_KEY` and `BuildConfig.GEMINI_MODEL` (`gemini-3.5-flash-lite`).
    - Enable `buildFeatures { buildConfig = true }`.
 
 2. **GeminiAiProvider**:

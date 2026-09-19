@@ -10,7 +10,7 @@ Successfully implemented **Kumaru V0.2A**, upgrading Kumaru with a real AI brain
 - Updated [app/build.gradle.kts](file:///c:/Users/hp/Desktop/Kumaru/app/build.gradle.kts):
   - Enabled `buildFeatures { buildConfig = true }`.
   - Configured build script to dynamically read `GEMINI_API_KEY` (and `gemini.model`) from `local.properties` (or environment variables).
-  - Injected `BuildConfig.GEMINI_API_KEY` and `BuildConfig.GEMINI_MODEL` (`gemini-2.5-flash-lite`).
+  - Injected `BuildConfig.GEMINI_API_KEY` and `BuildConfig.GEMINI_MODEL` (`gemini-3.5-flash-lite`).
   - Guaranteed security: `local.properties` is listed in `.gitignore` and excluded from version control. No secret keys exist in any Kotlin source code.
 
 ### 1.2 Gemini AI Provider ([GeminiAiProvider.kt](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/ai/GeminiAiProvider.kt))

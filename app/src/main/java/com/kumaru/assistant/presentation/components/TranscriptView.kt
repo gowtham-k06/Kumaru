@@ -170,10 +170,10 @@ private fun EmptyTranscriptSuggestions(
     modifier: Modifier = Modifier
 ) {
     val suggestions = listOf(
-        "Enna Kumaru, what time is it?",
+        "Enna Kumaru, epdi irukinga?",
         "Who are you and what can you do?",
-        "Explain the Kumaru architecture",
-        "What happens in stage V0.2?"
+        "Tell me something interesting about space",
+        "What are you building in stage V0.2?"
     )
 
     Column(
@@ -184,7 +184,7 @@ private fun EmptyTranscriptSuggestions(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "KUMARU V0.1 IS ACTIVE",
+            text = "KUMARU V0.2 VOICE ACTIVE",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.8.sp,
@@ -192,7 +192,7 @@ private fun EmptyTranscriptSuggestions(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "Press Talk or choose a query below to interact:",
+            text = "Tap the microphone below or choose a query:",
             fontSize = 13.sp,
             color = TextMuted
         )

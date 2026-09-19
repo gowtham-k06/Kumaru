@@ -6,7 +6,6 @@ import com.kumaru.assistant.core.model.ConversationMessage
 import com.kumaru.assistant.core.model.MessageRole
 import com.kumaru.assistant.core.state.AssistantState
 import com.kumaru.assistant.data.ai.AiProviderFactory
-import com.kumaru.assistant.data.ai.MockAiProvider
 import com.kumaru.assistant.data.memory.InMemoryMemoryStore
 import com.kumaru.assistant.data.tools.DefaultToolExecutor
 import com.kumaru.assistant.data.voice.PushToTalkVoiceInput
@@ -26,6 +25,9 @@ import kotlinx.coroutines.launch
 /**
  * Core coordinator managing the Kumaru assistant state machine:
  * IDLE -> LISTENING -> THINKING -> SPEAKING -> IDLE
+ *
+ * Coordinates real Android SpeechRecognizer input, multi-turn Gemini reasoning,
+ * and native TextToSpeech vocal playback.
  */
 class AssistantViewModel(
     private val memoryStore: MemoryStore = InMemoryMemoryStore(),
@@ -42,14 +44,20 @@ class AssistantViewModel(
 
     /**
      * Primary handler for the central Talk button.
+     *
+     * @param hasRecordPermission True if RECORD_AUDIO permission is granted.
      */
-    fun onTalkButtonClicked() {
+    fun onTalkButtonClicked(hasRecordPermission: Boolean = true) {
         when (_uiState.value.assistantState) {
             AssistantState.IDLE, AssistantState.ERROR -> {
-                startListening()
+                if (hasRecordPermission) {
+                    startListening()
+                } else {
+                    onPermissionDenied()
+                }
             }
             AssistantState.LISTENING -> {
-                // User finished speaking; conclude capture and transition to thinking
+                // User finished speaking; conclude capture
                 voiceInput.stopListening()
             }
             AssistantState.THINKING -> {
@@ -63,9 +71,24 @@ class AssistantViewModel(
     }
 
     /**
-     * Directly triggers an interaction with predefined or transcribed text.
+     * Invoked when runtime microphone permission is denied.
+     */
+    fun onPermissionDenied() {
+        _uiState.update {
+            it.copy(
+                assistantState = AssistantState.ERROR,
+                errorMessage = "Microphone permission is required for voice input. Please allow it to speak with Kumaru."
+            )
+        }
+    }
+
+    /**
+     * Directly triggers an interaction with predefined query suggestions.
      */
     fun onSuggestionSelected(query: String) {
+        if (_uiState.value.assistantState == AssistantState.THINKING) {
+            return // Reject repeated triggers while reasoning
+        }
         if (_uiState.value.assistantState == AssistantState.SPEAKING) {
             interruptSpeaking()
         }
@@ -76,33 +99,47 @@ class AssistantViewModel(
         _uiState.update {
             it.copy(
                 assistantState = AssistantState.LISTENING,
+                currentInput = "",
                 errorMessage = null
             )
         }
 
         voiceInput.startListening(
             onResult = { transcript ->
+                _uiState.update { it.copy(currentInput = "") }
                 processUserInput(transcript)
             },
             onError = { error ->
                 _uiState.update {
                     it.copy(
                         assistantState = AssistantState.ERROR,
-                        errorMessage = error.localizedMessage ?: "Voice input error"
+                        errorMessage = error.localizedMessage ?: "Voice input error occurred",
+                        currentInput = ""
                     )
+                }
+            },
+            onPartialResult = { partialTranscript ->
+                _uiState.update {
+                    it.copy(currentInput = partialTranscript)
                 }
             }
         )
     }
 
     private fun processUserInput(input: String) {
+        val trimmedInput = input.trim()
+        if (trimmedInput.isEmpty()) {
+            _uiState.update { it.copy(assistantState = AssistantState.IDLE) }
+            return
+        }
+
         activeProcessingJob?.cancel()
         activeProcessingJob = viewModelScope.launch {
             try {
                 // 1. Record User Message
                 val userMessage = ConversationMessage(
                     role = MessageRole.USER,
-                    text = input
+                    text = trimmedInput
                 )
                 memoryStore.saveMessage(userMessage)
 
@@ -111,12 +148,13 @@ class AssistantViewModel(
                     it.copy(
                         assistantState = AssistantState.THINKING,
                         messages = it.messages + userMessage,
+                        currentInput = "",
                         errorMessage = null
                     )
                 }
 
-                // 3. Obtain AI response (MockAiProvider in V0.1, Gemini in V0.2)
-                val responseText = aiProvider.generateResponse(input)
+                // 3. Obtain AI response (Gemini REST API with session context)
+                val responseText = aiProvider.generateResponse(trimmedInput)
 
                 // 4. Record Assistant Message
                 val assistantMessage = ConversationMessage(
@@ -133,7 +171,7 @@ class AssistantViewModel(
                     )
                 }
 
-                // 6. Voice output synthesis
+                // 6. Voice output synthesis via native TextToSpeech
                 voiceOutput.speak(responseText)
 
                 // 7. Transition back to IDLE
@@ -168,6 +206,7 @@ class AssistantViewModel(
                 AssistantUiState(
                     assistantState = AssistantState.IDLE,
                     messages = emptyList(),
+                    currentInput = "",
                     errorMessage = null
                 )
             }
@@ -177,8 +216,11 @@ class AssistantViewModel(
     override fun onCleared() {
         super.onCleared()
         voiceOutput.stop()
+        voiceOutput.release()
         if (voiceInput.isListening) {
             voiceInput.stopListening()
         }
+        voiceInput.destroy()
     }
 }
+

@@ -36,7 +36,8 @@ To connect Kumaru to your Gemini API key:
    ```
    *(Optional) You can also configure a custom Gemini model if desired:*
    ```properties
-   gemini.model=gemini-2.5-flash-lite
+   GEMINI_API_KEY=your_gemini_api_key_here
+   gemini.model=gemini-3.5-flash-lite
    ```
 3. Save the file. Gradle will automatically inject the key into `BuildConfig.GEMINI_API_KEY` during compilation.
 

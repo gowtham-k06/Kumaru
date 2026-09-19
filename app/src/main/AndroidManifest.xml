@@ -8,6 +8,16 @@
     <!-- Audio record permission for voice input & future wake-phrase detection ("Enna Kumaru") -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Package visibility declarations for speech recognition and TTS on Android 11+ (API 30+) -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".KumaruApplication"
         android:allowBackup="true"

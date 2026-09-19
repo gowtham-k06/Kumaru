@@ -11,12 +11,14 @@ interface VoiceInput {
     /**
      * Starts audio capture / speech recognition session.
      *
-     * @param onResult Callback invoked when speech transcription is complete.
+     * @param onResult Callback invoked when final speech transcription is complete.
      * @param onError Callback invoked when an error occurs during capture.
+     * @param onPartialResult Optional callback invoked as partial speech is transcribed in real-time.
      */
     fun startListening(
         onResult: (String) -> Unit,
-        onError: (Throwable) -> Unit
+        onError: (Throwable) -> Unit,
+        onPartialResult: ((String) -> Unit)? = null
     )
 
     /**
@@ -28,4 +30,9 @@ interface VoiceInput {
      * Current listening state.
      */
     val isListening: Boolean
+
+    /**
+     * Release any underlying platform resources (e.g. SpeechRecognizer).
+     */
+    fun destroy() {}
 }

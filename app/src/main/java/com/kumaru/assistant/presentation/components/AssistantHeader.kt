@@ -85,7 +85,7 @@ fun AssistantHeader(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "V0.1",
+                        text = "V0.2",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeonCyan,

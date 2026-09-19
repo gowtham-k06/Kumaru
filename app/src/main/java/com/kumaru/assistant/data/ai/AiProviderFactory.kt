@@ -1,5 +1,6 @@
 package com.kumaru.assistant.data.ai
 
+import android.util.Log
 import com.kumaru.assistant.BuildConfig
 import com.kumaru.assistant.domain.ai.AiProvider
 import com.kumaru.assistant.domain.memory.MemoryStore
@@ -10,6 +11,8 @@ import com.kumaru.assistant.domain.memory.MemoryStore
  * without requiring changes to [com.kumaru.assistant.presentation.viewmodel.AssistantViewModel].
  */
 object AiProviderFactory {
+
+    private const val TAG = "AiProviderFactory"
 
     /**
      * Creates an [AiProvider] instance.
@@ -25,6 +28,7 @@ object AiProviderFactory {
         apiKey: String = BuildConfig.GEMINI_API_KEY,
         model: String = BuildConfig.GEMINI_MODEL
     ): AiProvider {
+        Log.i(TAG, "KUMARU FACTORY MODEL = $model")
         return if (!forceMock && apiKey.isNotBlank()) {
             GeminiAiProvider(
                 apiKey = apiKey,

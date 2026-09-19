@@ -20,7 +20,7 @@ val geminiApiKey: String = localProperties.getProperty("GEMINI_API_KEY")
 
 val geminiModel: String = localProperties.getProperty("gemini.model")
     ?: localProperties.getProperty("GEMINI_MODEL")
-    ?: "gemini-2.5-flash-lite"
+    ?: "gemini-3.5-flash-lite"
 
 android {
     namespace = "com.kumaru.assistant"
