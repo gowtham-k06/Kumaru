@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Kumaru</string>
+    <string name="assistant_ready">Ready</string>
+    <string name="assistant_listening">Listening…</string>
+    <string name="assistant_thinking">Thinking…</string>
+    <string name="assistant_speaking">Speaking…</string>
+    <string name="assistant_error">Error</string>
+    <string name="talk_button_cd">Talk with Kumaru</string>
+    <string name="reset_chat_cd">Reset conversation</string>
+</resources>
