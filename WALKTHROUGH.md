@@ -1,212 +1,103 @@
-# Walkthrough - Kumaru V0.2A (Real Gemini AI Brain)
+# Walkthrough - Kumaru V0.2.1 (Manual Voice Control + Text Input + Performance Stabilization)
 
-Successfully implemented **Kumaru V0.2A**, upgrading Kumaru with a real AI brain powered by **Google Gemini 2.5 Flash Lite** while keeping the existing UI, push-to-talk state machine, and session memory intact.
-
----
-
-## 1. What was Implemented
-
-### 1.1 Secure API Key & Gradle Configuration
-- Updated [app/build.gradle.kts](file:///c:/Users/hp/Desktop/Kumaru/app/build.gradle.kts):
-  - Enabled `buildFeatures { buildConfig = true }`.
-  - Configured build script to dynamically read `GEMINI_API_KEY` (and `gemini.model`) from `local.properties` (or environment variables).
-  - Injected `BuildConfig.GEMINI_API_KEY` and `BuildConfig.GEMINI_MODEL` (`gemini-3.5-flash-lite`).
-  - Guaranteed security: `local.properties` is listed in `.gitignore` and excluded from version control. No secret keys exist in any Kotlin source code.
-
-### 1.2 Gemini AI Provider ([GeminiAiProvider.kt](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/ai/GeminiAiProvider.kt))
-- Implements [AiProvider](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/domain/ai/AiProvider.kt).
-- **Asynchronous Network Pipeline**:
-  - Uses `HttpURLConnection` on `Dispatchers.IO` with zero bloated dependencies.
-  - Generates JSON payload for Google Gemini REST API (`generateContent`).
-- **Session Memory Integration**:
-  - Injects [MemoryStore](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/domain/memory/MemoryStore.kt) to retrieve the recent turns (`user` and `model` roles) and maintains full conversational context during the active session.
-- **Kumaru Personality & System Instructions**:
-  - Calm, concise, intelligent, conversational tone tailored for spoken conversation.
-  - Understands casual English and Tamil / Thanglish colloquialisms (*"Enna Kumaru"*, *"Sollunga"*, *"Vanakkam"*, *"Nandri"*).
-  - Strict honesty on tool capabilities: politely clarifies that device tools/alarms are coming in future stages.
-- **Robust Error Handling**:
-  - Catches offline states (`UnknownHostException`), timeouts (`SocketTimeoutException`), invalid/expired API keys (HTTP 400/401/403), rate limits (HTTP 429), and safety filtering (`finishReason: SAFETY`) without crashing.
-
-### 1.3 Provider Selection Mechanism ([AiProviderFactory.kt](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/ai/AiProviderFactory.kt))
-- Dynamically selects [GeminiAiProvider](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/ai/GeminiAiProvider.kt) when `GEMINI_API_KEY` is present.
-- Seamlessly falls back to [MockAiProvider](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/ai/MockAiProvider.kt) when the key is missing or when mock mode is forced.
-
-### 1.4 AssistantViewModel Integration ([AssistantViewModel.kt](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/viewmodel/AssistantViewModel.kt))
-- Connected `aiProvider` to `AiProviderFactory.create(memoryStore)`.
-- Preserved the existing UI state machine: `IDLE` -> `THINKING` -> `SPEAKING` -> `IDLE`.
+Successfully engineered **Kumaru V0.2.1**, addressing voice listening behavior, manual start/stop continuous voice sessions, 15-second inactivity timeout, shared message pipeline for voice and text input, glassmorphic text field, and canvas orb stability.
 
 ---
 
-## 2. File Change Summary
+## 1. Summary of Changes
 
-| File | Status | Description |
-|---|---|---|
-| [`app/build.gradle.kts`](file:///c:/Users/hp/Desktop/Kumaru/app/build.gradle.kts) | Modified | Enabled BuildConfig, injected `GEMINI_API_KEY` & `GEMINI_MODEL` from `local.properties` |
-| [`app/.../data/ai/GeminiAiProvider.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/ai/GeminiAiProvider.kt) | Created | Google Gemini 2.5 Flash Lite provider with session context & error handling |
-| [`app/.../data/ai/AiProviderFactory.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/ai/AiProviderFactory.kt) | Created | Provider selector between Gemini and Mock fallback |
-| [`app/.../presentation/viewmodel/AssistantViewModel.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/viewmodel/AssistantViewModel.kt) | Modified | Injected factory-created AI provider with session memory |
-| [`README.md`](file:///c:/Users/hp/Desktop/Kumaru/README.md) | Modified | Added V0.2A features, API key config, build/run steps, and mock toggle |
-| [`IMPLEMENTATION_PLAN.md`](file:///c:/Users/hp/Desktop/Kumaru/IMPLEMENTATION_PLAN.md) | Modified | Updated plan for V0.2A |
+### 1.1 Voice Listening Behavior & Multi-Segment Pause Support
+- **Files Modified**:
+  - [`VoiceInput.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/domain/voice/VoiceInput.kt)
+  - [`PushToTalkVoiceInput.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/data/voice/PushToTalkVoiceInput.kt)
+- **New Behavior**:
+  - Voice input is **manually started** (tap Voice button) and **manually stopped** (tap Stop button) OR automatically submitted when **15 seconds of inactivity** occurs.
+  - Normal silence (2s, 5s, 10s) does **NOT** trigger submission to Gemini.
+  - `onEndOfSpeech()` and SpeechRecognizer internal timeouts (`ERROR_NO_MATCH`, `ERROR_SPEECH_TIMEOUT`, `ERROR_CLIENT`) no longer terminate the user's session. The session remains in `LISTENING` state and automatically restarts recognition on the single managed `SpeechRecognizer` instance.
+  - Multi-segment recognition text is accumulated in `accumulatedTranscript` across pauses.
+  - If the user taps Stop without speaking, it returns to `IDLE` with `"No speech detected."` without calling Gemini.
+
+### 1.2 15-Second Inactivity Timer
+- **Files Modified**:
+  - [`AssistantViewModel.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/viewmodel/AssistantViewModel.kt)
+- **Implementation**:
+  - Lifecycle-aware coroutine timer managed via `viewModelScope`.
+  - Starts 15s timer when voice listening begins.
+  - Resets to 15s whenever speech activity is detected (`onBeginningOfSpeech`, `onPartialResults`, `onResults`, or RMS audio activity above threshold).
+  - When 15 seconds elapse with no activity: stops listening and submits the accumulated transcript (or resets to `IDLE` with `"No speech detected."` if empty).
+  - Automatically cancels on manual stop, Gemini start, error, or ViewModel destruction.
+
+### 1.3 Text Input & Shared Message Pipeline
+- **Files Created / Modified**:
+  - [`ChatInputField.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/components/ChatInputField.kt) [NEW]
+  - [`AssistantScreen.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/ui/AssistantScreen.kt)
+  - [`AssistantViewModel.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/viewmodel/AssistantViewModel.kt)
+- **Features**:
+  - Glassmorphic text input bar matching the futuristic Kumaru aesthetic.
+  - Keyboard enter/send action (`ImeAction.Send`).
+  - Empty text is prevented from submitting.
+  - Typing and sending text does NOT require microphone permission or instantiate `SpeechRecognizer`.
+  - Shared message pipeline `submitUserMessage(text)` connects both Voice, Text, and Suggestions to the same Gemini memory & vocal synthesis flow.
+  - Prevents duplicate submissions while `THINKING` or `SPEAKING`.
+
+### 1.4 Central Orb Stability & UI Performance
+- **Files Modified**:
+  - [`GlowingOrb.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/components/GlowingOrb.kt)
+  - [`TalkButton.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/components/TalkButton.kt)
+- **Fixes**:
+  - Anchored orbital rings and rotating celestial nodes to a constant base radius (`baseRadius * 1.35f`).
+  - Removed eccentric wobble/shaking caused by dynamic radial scaling while rotating.
+  - Breathing pulse is applied smoothly to the inner glowing core and atmospheric aura only.
+  - Layout dimensions remain strictly fixed to prevent jitter and excessive recompositions.
+
+### 1.5 Version & Header
+- **Files Modified**:
+  - [`AssistantHeader.kt`](file:///c:/Users/hp/Desktop/Kumaru/app/src/main/java/com/kumaru/assistant/presentation/components/AssistantHeader.kt): Updated badge to `V0.2.1`.
+  - [`app/build.gradle.kts`](file:///c:/Users/hp/Desktop/Kumaru/app/build.gradle.kts): Updated `versionCode = 3`, `versionName = "0.2.1"`.
 
 ---
 
-## 3. How to Configure the API Key
+## 2. Build & Deployment Commands
 
-1. Open `local.properties` at the root of `Kumaru`.
-2. Add your Gemini API key:
-   ```properties
-   GEMINI_API_KEY=YOUR_GEMINI_API_KEY_VALUE
-   ```
-3. Save the file.
+In PowerShell:
+
+```powershell
+# Set Gradle User Home and assemble debug APK
+$env:GRADLE_USER_HOME="C:\GradleUserHome"
+cd C:\Users\hp\Desktop\Kumaru
+.\gradlew.bat assembleDebug
+
+# Output APK path:
+# app\build\outputs\apk\debug\app-debug.apk
+
+# Detect connected ADB device
+$ADB = "C:\Users\hp\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+& $ADB devices
+
+# Uninstall existing and install V0.2.1
+& $ADB uninstall com.kumaru.assistant
+& $ADB install app\build\outputs\apk\debug\app-debug.apk
+
+# Launch Kumaru V0.2.1
+& $ADB shell am start -n com.kumaru.assistant/.MainActivity
+```
 
 ---
 
-## 4. How to Build & Run in PowerShell
+## 3. Git Status & Commit Commands
 
 ```powershell
 cd C:\Users\hp\Desktop\Kumaru
-.\gradlew.bat assembleDebug
-.\gradlew.bat installDebug
-adb shell am start -n com.kumaru.assistant/.MainActivity
-```
-*(Or press Run in Android Studio).*
 
----
+# Verify ignored files remain clean (local.properties, app/build/, .gradle/)
+git status
 
-## 5. Three Suggested Test Questions
+# Stage changes
+git add .
 
-1. **Identity & Scope**:
-   > *"Who are you and what can you do?"*
-2. **Multi-turn Contextual Memory**:
-   > Turn 1: *"What is the capital of Japan?"*
-   > Turn 2: *"How far is it from Bangalore?"*
-3. **Tamil/Thanglish & Tool Boundaries**:
-   > *"Enna Kumaru, can you turn on my flashlight?"*
+# Commit V0.2.1
+git commit -m "Kumaru V0.2.1 - manual voice and text input"
 
----
-
-## Project Directory Structure
-
-The project has been scaffolded as a native Android Kotlin application with a clean, extensible MVVM architecture:
-
-```
-c:\Users\hp\Desktop\Kumaru/
-├── settings.gradle.kts                   # Project configuration & Maven/Google repository setup
-├── build.gradle.kts                      # Root Gradle script (AGP 8.5.1, Kotlin 2.0.0, Compose Plugin)
-├── gradle.properties                     # JVM memory & AndroidX flags
-├── gradlew.bat                           # Gradle wrapper batch script for Windows
-├── gradle/
-│   ├── libs.versions.toml                # Version catalog with Compose BOM, Lifecycle, Coroutines
-│   └── wrapper/
-│       └── gradle-wrapper.properties     # Gradle 8.7 distribution
-├── app/
-│   ├── build.gradle.kts                  # Android app module config (compileSdk 34, minSdk 26, Java 17)
-│   ├── proguard-rules.pro                # ProGuard rules
-│   └── src/main/
-│       ├── AndroidManifest.xml           # Permissions (INTERNET, RECORD_AUDIO), Application & Activity
-│       ├── res/values/
-│       │   ├── strings.xml               # UI text resources
-│       │   ├── colors.xml                # Color tokens
-│       │   └── themes.xml                # Edge-to-edge dark theme
-│       └── java/com/kumaru/assistant/
-│           ├── KumaruApplication.kt      # Application entry
-│           ├── MainActivity.kt           # Edge-to-edge ComponentActivity
-│           ├── core/
-│           │   ├── state/
-│           │   │   └── AssistantState.kt # IDLE, LISTENING, THINKING, SPEAKING, ERROR
-│           │   └── model/
-│           │       └── ConversationMessage.kt # Message data model (role, text, timestamp)
-│           ├── domain/
-│           │   ├── ai/
-│           │   │   └── AiProvider.kt     # AI generation contract
-│           │   ├── voice/
-│           │   │   ├── VoiceInput.kt     # Speech-to-text contract
-│           │   │   └── VoiceOutput.kt    # Speech synthesis contract
-│           │   ├── tools/
-│           │   │   ├── ToolExecutor.kt   # Extensible tool execution contract
-│           │   │   └── Tool.kt           # Tool definitions (openApp, setAlarm, etc.)
-│           │   └── memory/
-│           │       └── MemoryStore.kt    # Contextual memory contract
-│           ├── data/
-│           │   ├── ai/
-│           │   │   └── MockAiProvider.kt # Conversational mock for V0.1 (Gemini-ready for V0.2)
-│           │   ├── voice/
-│           │   │   ├── PushToTalkVoiceInput.kt # Push-to-talk coordinator
-│           │   │   └── SystemVoiceOutput.kt    # Speech synthesis coordinator
-│           │   ├── tools/
-│           │   │   └── DefaultToolExecutor.kt  # Non-fake tool registry
-│           │   └── memory/
-│           │       └── InMemoryMemoryStore.kt  # Ephemeral context buffer
-│           └── presentation/
-│               ├── theme/
-│               │   ├── Color.kt          # Obsidian void, neon cyan, cyber violet, amber
-│               │   ├── Type.kt           # Modern sans-serif typography tokens
-│               │   └── Theme.kt          # KumaruTheme composable
-│               ├── components/
-│               │   ├── GlowingOrb.kt     # Animated multi-layered Canvas AI orb
-│               │   ├── AssistantHeader.kt# Brand title, version badge, live status chip, reset action
-│               │   ├── TranscriptView.kt # Fluid non-boxy message stream with suggestions
-│               │   └── TalkButton.kt     # Large tactile push-to-talk button with ambient glow
-│               ├── viewmodel/
-│               │   ├── AssistantUiState.kt    # UI state model
-│               │   └── AssistantViewModel.kt  # State coordinator (IDLE -> LISTENING -> THINKING -> SPEAKING -> IDLE)
-│               └── ui/
-│                   └── AssistantScreen.kt     # Top-level screen composition
-```
-
----
-
-## 2. Key Architectural Features
-
-### Core State Machine
-The assistant reacts dynamically across 5 distinct states:
-- `IDLE`: Assistant is dormant and listening for interaction. The orb breathes gently with cyan and violet gradients.
-- `LISTENING`: Triggered via Push-to-Talk. The orb pulses rapidly and projects expanding acoustic shockwave rings.
-- `THINKING`: User query is being reasoned over by `AiProvider`. The orb displays dual counter-rotating orbital rings with an amber-violet core.
-- `SPEAKING`: Assistant delivers response via `VoiceOutput`. The orb pulses with vocal modulation waveforms.
-- `ERROR`: Alert state displaying amber-crimson warning glow and allowing a retry.
-
-### Future-Proof Abstractions (No Fake Logic)
-- **`AiProvider`**: Simple contract (`suspend fun generateResponse(input: String): String`). `MockAiProvider` provides immediate responses in V0.1 so you can test without an API key, ready to be swapped with Google Gemini in V0.2.
-- **`VoiceInput`**: Push-to-talk in V0.1, structured to seamlessly connect native speech recognition or the `"Enna Kumaru"` wake phrase in future phases.
-- **`VoiceOutput`**: Contract for TTS playback.
-- **`ToolExecutor`**: Registers future capabilities (`openApp`, `setAlarm`, `createReminder`, `makeCall`, `openBrowser`, `getWeather`, `searchWeb`). Per design instructions, it cleanly acknowledges the registered tool specifications without pretending real actions happened.
-- **`MemoryStore`**: Thread-safe in-memory buffer in V0.1, ready for persistent Room / vector storage later.
-
----
-
-## 3. How to Open, Build, and Launch Kumaru
-
-### Option A: Via Android Studio (Recommended)
-1. Open **Android Studio**.
-2. Click **File > Open...** (or **Open** from the Welcome screen).
-3. Navigate to and select: `C:\Users\hp\Desktop\Kumaru`.
-4. Click **OK**.
-5. Android Studio will automatically recognize the Gradle build files and sync the project dependencies.
-6. Select an Android Emulator or a connected Android device (running Android 8.0 / API 26 or higher).
-7. Click the **Run** button (green play icon `▶`) or press **Shift + F10**.
-
-### Option B: Via Terminal / Command Line
-If you want to build APKs directly from PowerShell or Command Prompt:
-
-```powershell
-cd C:\Users\hp\Desktop\Kumaru
-.\gradlew.bat assembleDebug
-```
-
-The compiled APK will be located at:
-`app\build\outputs\apk\debug\app-debug.apk`
-
-To install directly to a connected device or running emulator:
-```powershell
-.\gradlew.bat installDebug
-```
-
----
-
-## 4. Antigravity IDE Terminal Runner Note
-If you want Antigravity IDE to execute terminal commands internally, Windows requires permissions for the folder `C:\Users\hp\.gemini\antigravity-ide\bin`. 
-You can resolve this anytime by creating the folder in PowerShell:
-```powershell
-New-Item -ItemType Directory -Path "C:\Users\hp\.gemini\antigravity-ide\bin" -Force
+# Push to configured remote
+git push
 ```

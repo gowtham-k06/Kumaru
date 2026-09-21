@@ -32,10 +32,10 @@ import com.kumaru.assistant.presentation.theme.ErrorCrimson
 import com.kumaru.assistant.presentation.theme.NeonCyan
 
 /**
- * Ultra-stable, high-performance canvas AI orb.
+ * Ultra-stable, high-performance canvas AI orb for Kumaru.
  *
- * Designed with fixed geometric layout constraints, hardware-accelerated draw passes,
- * and zero frame-to-frame layout jitter.
+ * Designed with fixed geometric layout constraints, rock-solid orbital anchoring
+ * to eliminate jitter/wobble, and hardware-accelerated draw passes.
  *
  * States:
  * - IDLE: Gentle breathing pulse with cyan-violet celestial orbital node.
@@ -48,16 +48,16 @@ import com.kumaru.assistant.presentation.theme.NeonCyan
 fun GlowingOrb(
     state: AssistantState,
     modifier: Modifier = Modifier,
-    size: Dp = 180.dp
+    size: Dp = 160.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "OrbInfiniteTransition")
 
-    // Smooth subtle breathing pulse (1.00f to 1.08f) - gentle, no violent scaling
+    // Smooth subtle breathing pulse for core glow
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = 1.06f,
+        initialValue = 0.96f,
+        targetValue = 1.04f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "OrbPulse"
@@ -66,9 +66,9 @@ fun GlowingOrb(
     // Smooth listening pulse
     val listeningPulse by infiniteTransition.animateFloat(
         initialValue = 0.98f,
-        targetValue = 1.12f,
+        targetValue = 1.08f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "ListeningPulse"
@@ -79,7 +79,7 @@ fun GlowingOrb(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 9000, easing = LinearEasing),
+            animation = tween(durationMillis = 10000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "OrbRotation"
@@ -90,7 +90,7 @@ fun GlowingOrb(
         initialValue = 360f,
         targetValue = 0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4500, easing = LinearEasing),
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "OrbReverseRotation"
@@ -101,7 +101,7 @@ fun GlowingOrb(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800, easing = LinearEasing),
+            animation = tween(durationMillis = 2000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "OrbWaveProgress"
@@ -133,7 +133,7 @@ fun GlowingOrb(
         label = "OrbSecondaryColor"
     )
 
-    // Outer container with strictly fixed dimensions - prevents any parent layout jitter
+    // Outer container with strictly fixed dimensions
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center
@@ -146,7 +146,8 @@ fun GlowingOrb(
                 AssistantState.IDLE -> {
                     drawIdleOrb(
                         center = center,
-                        radius = baseRadius * pulseScale,
+                        baseRadius = baseRadius,
+                        pulseScale = pulseScale,
                         primary = primaryColor,
                         secondary = secondaryColor,
                         rotation = rotationDegrees
@@ -155,7 +156,8 @@ fun GlowingOrb(
                 AssistantState.LISTENING -> {
                     drawListeningOrb(
                         center = center,
-                        radius = baseRadius * listeningPulse,
+                        baseRadius = baseRadius,
+                        listeningPulse = listeningPulse,
                         primary = primaryColor,
                         secondary = secondaryColor,
                         waveProgress = waveProgress
@@ -164,7 +166,7 @@ fun GlowingOrb(
                 AssistantState.THINKING -> {
                     drawThinkingOrb(
                         center = center,
-                        radius = baseRadius,
+                        baseRadius = baseRadius,
                         primary = primaryColor,
                         secondary = secondaryColor,
                         forwardRotation = rotationDegrees * 2,
@@ -174,7 +176,8 @@ fun GlowingOrb(
                 AssistantState.SPEAKING -> {
                     drawSpeakingOrb(
                         center = center,
-                        radius = baseRadius * pulseScale,
+                        baseRadius = baseRadius,
+                        pulseScale = pulseScale,
                         primary = primaryColor,
                         secondary = secondaryColor,
                         waveProgress = waveProgress
@@ -183,7 +186,8 @@ fun GlowingOrb(
                 AssistantState.ERROR -> {
                     drawErrorOrb(
                         center = center,
-                        radius = baseRadius * pulseScale,
+                        baseRadius = baseRadius,
+                        pulseScale = pulseScale,
                         primary = primaryColor,
                         secondary = secondaryColor
                     )
@@ -197,12 +201,14 @@ fun GlowingOrb(
 
 private fun DrawScope.drawIdleOrb(
     center: Offset,
-    radius: Float,
+    baseRadius: Float,
+    pulseScale: Float,
     primary: Color,
     secondary: Color,
     rotation: Float
 ) {
     // 1. Soft atmospheric halo
+    val haloRadius = baseRadius * 1.6f
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -211,14 +217,14 @@ private fun DrawScope.drawIdleOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius * 1.7f
+            radius = haloRadius
         ),
-        radius = radius * 1.7f,
+        radius = haloRadius,
         center = center
     )
 
-    // 2. Stable orbital ring with rotating celestial node
-    val ringRadius = radius * 1.35f
+    // 2. Stable orbital ring anchored to constant base radius (eliminates shaking/wobble)
+    val ringRadius = baseRadius * 1.35f
     drawCircle(
         color = primary.copy(alpha = 0.25f),
         radius = ringRadius,
@@ -226,6 +232,7 @@ private fun DrawScope.drawIdleOrb(
         style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
     )
 
+    // Smooth orbiting celestial node
     rotate(rotation, center) {
         drawCircle(
             color = primary,
@@ -234,7 +241,8 @@ private fun DrawScope.drawIdleOrb(
         )
     }
 
-    // 3. Dense glowing inner core
+    // 3. Dense glowing inner core with gentle pulse
+    val coreRadius = baseRadius * pulseScale
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -244,24 +252,25 @@ private fun DrawScope.drawIdleOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius
+            radius = coreRadius
         ),
-        radius = radius,
+        radius = coreRadius,
         center = center
     )
 }
 
 private fun DrawScope.drawListeningOrb(
     center: Offset,
-    radius: Float,
+    baseRadius: Float,
+    listeningPulse: Float,
     primary: Color,
     secondary: Color,
     waveProgress: Float
 ) {
-    // Stable harmonic acoustic pulse rings
+    // Stable harmonic acoustic pulse rings anchored to baseRadius
     for (i in 0..2) {
         val currentProgress = (waveProgress + (i * 0.33f)) % 1f
-        val ringRadius = radius * (1.05f + currentProgress * 0.55f)
+        val ringRadius = baseRadius * (1.05f + currentProgress * 0.55f)
         val alpha = (1f - currentProgress).coerceIn(0f, 1f) * 0.4f
 
         drawCircle(
@@ -273,6 +282,7 @@ private fun DrawScope.drawListeningOrb(
     }
 
     // High energy core
+    val coreRadius = baseRadius * listeningPulse
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -282,22 +292,23 @@ private fun DrawScope.drawListeningOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius * 1.15f
+            radius = coreRadius * 1.1f
         ),
-        radius = radius * 1.05f,
+        radius = coreRadius,
         center = center
     )
 }
 
 private fun DrawScope.drawThinkingOrb(
     center: Offset,
-    radius: Float,
+    baseRadius: Float,
     primary: Color,
     secondary: Color,
     forwardRotation: Float,
     reverseRotation: Float
 ) {
     // Outer thinking aura
+    val auraRadius = baseRadius * 1.6f
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -306,15 +317,15 @@ private fun DrawScope.drawThinkingOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius * 1.6f
+            radius = auraRadius
         ),
-        radius = radius * 1.6f,
+        radius = auraRadius,
         center = center
     )
 
-    // Clockwise orbital arc
-    val ringSize1 = Size(radius * 2.6f, radius * 2.6f)
-    val ringTopLeft1 = Offset(center.x - radius * 1.3f, center.y - radius * 1.3f)
+    // Clockwise orbital arc (anchored to baseRadius)
+    val ringSize1 = Size(baseRadius * 2.6f, baseRadius * 2.6f)
+    val ringTopLeft1 = Offset(center.x - baseRadius * 1.3f, center.y - baseRadius * 1.3f)
     rotate(forwardRotation, center) {
         drawArc(
             color = primary,
@@ -336,9 +347,9 @@ private fun DrawScope.drawThinkingOrb(
         )
     }
 
-    // Counter-clockwise orbital arc
-    val ringSize2 = Size(radius * 2.2f, radius * 2.2f)
-    val ringTopLeft2 = Offset(center.x - radius * 1.1f, center.y - radius * 1.1f)
+    // Counter-clockwise orbital arc (anchored to baseRadius)
+    val ringSize2 = Size(baseRadius * 2.2f, baseRadius * 2.2f)
+    val ringTopLeft2 = Offset(center.x - baseRadius * 1.1f, center.y - baseRadius * 1.1f)
     rotate(reverseRotation, center) {
         drawArc(
             color = secondary,
@@ -352,6 +363,7 @@ private fun DrawScope.drawThinkingOrb(
     }
 
     // Core energy swirl
+    val coreRadius = baseRadius * 0.9f
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -361,25 +373,26 @@ private fun DrawScope.drawThinkingOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius * 0.9f
+            radius = coreRadius
         ),
-        radius = radius * 0.9f,
+        radius = coreRadius,
         center = center
     )
 }
 
 private fun DrawScope.drawSpeakingOrb(
     center: Offset,
-    radius: Float,
+    baseRadius: Float,
+    pulseScale: Float,
     primary: Color,
     secondary: Color,
     waveProgress: Float
 ) {
-    // Concentric harmonic speaking rings
+    // Concentric harmonic speaking rings anchored to baseRadius
     val ringCount = 2
     for (i in 0 until ringCount) {
         val currentProgress = (waveProgress + (i * 0.5f)) % 1f
-        val currentRadius = radius * (1.1f + currentProgress * 0.45f)
+        val currentRadius = baseRadius * (1.1f + currentProgress * 0.45f)
         val alpha = (1f - currentProgress).coerceIn(0f, 1f) * 0.35f
 
         drawCircle(
@@ -391,6 +404,7 @@ private fun DrawScope.drawSpeakingOrb(
     }
 
     // Dynamic speaking halo
+    val haloRadius = baseRadius * 1.5f
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -399,13 +413,14 @@ private fun DrawScope.drawSpeakingOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius * 1.5f
+            radius = haloRadius
         ),
-        radius = radius * 1.5f,
+        radius = haloRadius,
         center = center
     )
 
     // Core bright orb
+    val coreRadius = baseRadius * pulseScale
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -415,19 +430,21 @@ private fun DrawScope.drawSpeakingOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius
+            radius = coreRadius
         ),
-        radius = radius,
+        radius = coreRadius,
         center = center
     )
 }
 
 private fun DrawScope.drawErrorOrb(
     center: Offset,
-    radius: Float,
+    baseRadius: Float,
+    pulseScale: Float,
     primary: Color,
     secondary: Color
 ) {
+    val auraRadius = baseRadius * 1.4f
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -436,12 +453,13 @@ private fun DrawScope.drawErrorOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius * 1.4f
+            radius = auraRadius
         ),
-        radius = radius * 1.4f,
+        radius = auraRadius,
         center = center
     )
 
+    val coreRadius = baseRadius * 0.9f * pulseScale
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
@@ -451,9 +469,9 @@ private fun DrawScope.drawErrorOrb(
                 Color.Transparent
             ),
             center = center,
-            radius = radius * 0.9f
+            radius = coreRadius
         ),
-        radius = radius * 0.9f,
+        radius = coreRadius,
         center = center
     )
 }

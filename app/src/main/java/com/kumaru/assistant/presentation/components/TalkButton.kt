@@ -16,14 +16,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,12 +43,11 @@ import com.kumaru.assistant.presentation.theme.CyberViolet
 import com.kumaru.assistant.presentation.theme.ErrorCrimson
 import com.kumaru.assistant.presentation.theme.NeonCyan
 import com.kumaru.assistant.presentation.theme.TextMuted
-import com.kumaru.assistant.presentation.theme.TextPrimary
 import com.kumaru.assistant.presentation.theme.VoidBlack
 
 /**
- * Large, tactile push-to-talk button with dynamic ambient halo rings
- * and state-reactive icons.
+ * Large, tactile voice button for Kumaru V0.2.1.
+ * Supports manual start and stop listening with reactive visual feedback.
  */
 @Composable
 fun TalkButton(
@@ -58,8 +56,9 @@ fun TalkButton(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-
     val infiniteTransition = rememberInfiniteTransition(label = "TalkHaloTransition")
+
+    val isInteractive = state == AssistantState.IDLE || state == AssistantState.LISTENING || state == AssistantState.ERROR
 
     // Ambient glow pulse
     val haloScale by infiniteTransition.animateFloat(
@@ -95,38 +94,43 @@ fun TalkButton(
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(96.dp)
+            modifier = Modifier.size(92.dp)
         ) {
             // Ambient outer glowing halo
             if (state == AssistantState.LISTENING || state == AssistantState.IDLE) {
                 Box(
                     modifier = Modifier
-                        .size(84.dp)
+                        .size(80.dp)
                         .scale(if (state == AssistantState.LISTENING) haloScale else 1.05f)
                         .clip(CircleShape)
-                        .background(glowColor.copy(alpha = if (state == AssistantState.LISTENING) 0.28f else 0.10f))
+                        .background(glowColor.copy(alpha = if (state == AssistantState.LISTENING) 0.28f else 0.08f))
                 )
             }
 
             // Main tactile core button
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(68.dp)
                     .scale(buttonScale)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                glowColor.copy(alpha = 0.9f),
-                                glowColor.copy(alpha = 0.6f),
+                                glowColor.copy(alpha = if (isInteractive) 0.9f else 0.4f),
+                                glowColor.copy(alpha = if (isInteractive) 0.6f else 0.2f),
                                 VoidBlack
                             )
                         )
                     )
-                    .border(1.5.dp, glowColor, CircleShape)
+                    .border(
+                        1.5.dp,
+                        glowColor.copy(alpha = if (isInteractive) 1f else 0.4f),
+                        CircleShape
+                    )
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
+                        enabled = isInteractive,
                         onClick = onClick
                     ),
                 contentAlignment = Alignment.Center
@@ -137,7 +141,7 @@ fun TalkButton(
                             imageVector = Icons.Default.Mic,
                             contentDescription = "Talk to Kumaru",
                             tint = VoidBlack,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                     AssistantState.LISTENING -> {
@@ -145,7 +149,7 @@ fun TalkButton(
                             imageVector = Icons.Default.Stop,
                             contentDescription = "Stop Listening",
                             tint = VoidBlack,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                     AssistantState.THINKING -> {
@@ -153,7 +157,7 @@ fun TalkButton(
                             imageVector = Icons.Default.HourglassEmpty,
                             contentDescription = "Thinking",
                             tint = VoidBlack,
-                            modifier = Modifier.size(30.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                     AssistantState.SPEAKING -> {
@@ -161,7 +165,7 @@ fun TalkButton(
                             imageVector = Icons.Default.VolumeUp,
                             contentDescription = "Speaking",
                             tint = VoidBlack,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                     AssistantState.ERROR -> {
@@ -169,24 +173,24 @@ fun TalkButton(
                             imageVector = Icons.Default.Mic,
                             contentDescription = "Retry",
                             tint = VoidBlack,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = when (state) {
                 AssistantState.IDLE -> "Tap to Talk"
                 AssistantState.LISTENING -> "Listening… Tap to submit"
                 AssistantState.THINKING -> "Kumaru is thinking…"
-                AssistantState.SPEAKING -> "Tap to interrupt"
-                AssistantState.ERROR -> "Tap to retry"
+                AssistantState.SPEAKING -> "Kumaru is speaking…"
+                AssistantState.ERROR -> "Tap to return to ready"
             },
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = if (state == AssistantState.LISTENING) NeonCyan else TextMuted
         )

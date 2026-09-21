@@ -16,6 +16,7 @@ import com.kumaru.assistant.domain.tools.ToolExecutor
 import com.kumaru.assistant.domain.voice.VoiceInput
 import com.kumaru.assistant.domain.voice.VoiceOutput
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,8 +27,8 @@ import kotlinx.coroutines.launch
  * Core coordinator managing the Kumaru assistant state machine:
  * IDLE -> LISTENING -> THINKING -> SPEAKING -> IDLE
  *
- * Coordinates real Android SpeechRecognizer input, multi-turn Gemini reasoning,
- * and native TextToSpeech vocal playback.
+ * Coordinates multi-segment voice input, 15-second inactivity timeouts,
+ * text input, multi-turn Gemini reasoning, and native TextToSpeech vocal playback.
  */
 class AssistantViewModel(
     private val memoryStore: MemoryStore = InMemoryMemoryStore(),
@@ -37,10 +38,15 @@ class AssistantViewModel(
     private val toolExecutor: ToolExecutor = DefaultToolExecutor()
 ) : ViewModel() {
 
+    companion object {
+        private const val INACTIVITY_TIMEOUT_MS = 15_000L
+    }
+
     private val _uiState = MutableStateFlow(AssistantUiState())
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
 
     private var activeProcessingJob: Job? = null
+    private var inactivityTimerJob: Job? = null
 
     /**
      * Primary handler for the central Talk button.
@@ -49,7 +55,7 @@ class AssistantViewModel(
      */
     fun onTalkButtonClicked(hasRecordPermission: Boolean = true) {
         when (_uiState.value.assistantState) {
-            AssistantState.IDLE, AssistantState.ERROR -> {
+            AssistantState.IDLE -> {
                 if (hasRecordPermission) {
                     startListening()
                 } else {
@@ -57,15 +63,23 @@ class AssistantViewModel(
                 }
             }
             AssistantState.LISTENING -> {
-                // User finished speaking; conclude capture
+                // User manually stopped listening; stop capture and submit transcript
+                cancelInactivityTimer()
                 voiceInput.stopListening()
             }
-            AssistantState.THINKING -> {
-                // Currently reasoning, wait for completion
+            AssistantState.THINKING, AssistantState.SPEAKING -> {
+                // Button disabled during reasoning and speaking
             }
-            AssistantState.SPEAKING -> {
-                // User interrupted the assistant's speech
-                interruptSpeaking()
+            AssistantState.ERROR -> {
+                // Return safely to IDLE
+                cancelInactivityTimer()
+                _uiState.update {
+                    it.copy(
+                        assistantState = AssistantState.IDLE,
+                        errorMessage = null,
+                        currentInput = ""
+                    )
+                }
             }
         }
     }
@@ -74,6 +88,7 @@ class AssistantViewModel(
      * Invoked when runtime microphone permission is denied.
      */
     fun onPermissionDenied() {
+        cancelInactivityTimer()
         _uiState.update {
             it.copy(
                 assistantState = AssistantState.ERROR,
@@ -83,57 +98,43 @@ class AssistantViewModel(
     }
 
     /**
+     * Directly triggers an interaction from text input.
+     */
+    fun onSendTextMessage(text: String) {
+        submitUserMessage(text)
+    }
+
+    /**
      * Directly triggers an interaction with predefined query suggestions.
      */
     fun onSuggestionSelected(query: String) {
-        if (_uiState.value.assistantState == AssistantState.THINKING) {
-            return // Reject repeated triggers while reasoning
-        }
-        if (_uiState.value.assistantState == AssistantState.SPEAKING) {
-            interruptSpeaking()
-        }
-        processUserInput(query)
+        submitUserMessage(query)
     }
 
-    private fun startListening() {
-        _uiState.update {
-            it.copy(
-                assistantState = AssistantState.LISTENING,
-                currentInput = "",
-                errorMessage = null
-            )
-        }
-
-        voiceInput.startListening(
-            onResult = { transcript ->
-                _uiState.update { it.copy(currentInput = "") }
-                processUserInput(transcript)
-            },
-            onError = { error ->
-                _uiState.update {
-                    it.copy(
-                        assistantState = AssistantState.ERROR,
-                        errorMessage = error.localizedMessage ?: "Voice input error occurred",
-                        currentInput = ""
-                    )
-                }
-            },
-            onPartialResult = { partialTranscript ->
-                _uiState.update {
-                    it.copy(currentInput = partialTranscript)
-                }
-            }
-        )
-    }
-
-    private fun processUserInput(input: String) {
+    /**
+     * Shared message pipeline for both Voice and Text input.
+     *
+     * User Input -> Memory Store -> Gemini Reasoning -> Memory Store -> Vocal TTS -> IDLE
+     */
+    fun submitUserMessage(input: String) {
         val trimmedInput = input.trim()
         if (trimmedInput.isEmpty()) {
             _uiState.update { it.copy(assistantState = AssistantState.IDLE) }
             return
         }
 
+        // Prevent duplicate submissions during active reasoning
+        if (_uiState.value.assistantState == AssistantState.THINKING) {
+            return
+        }
+
+        if (_uiState.value.assistantState == AssistantState.SPEAKING) {
+            interruptSpeaking()
+        }
+
+        cancelInactivityTimer()
         activeProcessingJob?.cancel()
+
         activeProcessingJob = viewModelScope.launch {
             try {
                 // 1. Record User Message
@@ -189,6 +190,70 @@ class AssistantViewModel(
         }
     }
 
+    private fun startListening() {
+        cancelInactivityTimer()
+        _uiState.update {
+            it.copy(
+                assistantState = AssistantState.LISTENING,
+                currentInput = "",
+                errorMessage = null
+            )
+        }
+
+        resetInactivityTimer()
+
+        voiceInput.startListening(
+            onResult = { transcript ->
+                cancelInactivityTimer()
+                _uiState.update { it.copy(currentInput = "") }
+                submitUserMessage(transcript)
+            },
+            onError = { error ->
+                cancelInactivityTimer()
+                _uiState.update {
+                    it.copy(
+                        assistantState = AssistantState.ERROR,
+                        errorMessage = error.localizedMessage ?: "Voice input error occurred",
+                        currentInput = ""
+                    )
+                }
+            },
+            onPartialResult = { partialTranscript ->
+                _uiState.update {
+                    it.copy(currentInput = partialTranscript)
+                }
+            },
+            onNoSpeech = {
+                cancelInactivityTimer()
+                _uiState.update {
+                    it.copy(
+                        assistantState = AssistantState.IDLE,
+                        currentInput = "",
+                        errorMessage = "No speech detected."
+                    )
+                }
+            },
+            onActivityDetected = {
+                resetInactivityTimer()
+            }
+        )
+    }
+
+    private fun resetInactivityTimer() {
+        inactivityTimerJob?.cancel()
+        inactivityTimerJob = viewModelScope.launch {
+            delay(INACTIVITY_TIMEOUT_MS)
+            if (_uiState.value.assistantState == AssistantState.LISTENING) {
+                voiceInput.stopListening()
+            }
+        }
+    }
+
+    private fun cancelInactivityTimer() {
+        inactivityTimerJob?.cancel()
+        inactivityTimerJob = null
+    }
+
     private fun interruptSpeaking() {
         voiceOutput.stop()
         activeProcessingJob?.cancel()
@@ -199,6 +264,7 @@ class AssistantViewModel(
      * Clears all session messages and resets state to IDLE.
      */
     fun resetConversation() {
+        cancelInactivityTimer()
         interruptSpeaking()
         viewModelScope.launch {
             memoryStore.clearHistory()
@@ -215,6 +281,8 @@ class AssistantViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        cancelInactivityTimer()
+        activeProcessingJob?.cancel()
         voiceOutput.stop()
         voiceOutput.release()
         if (voiceInput.isListening) {
@@ -223,4 +291,3 @@ class AssistantViewModel(
         voiceInput.destroy()
     }
 }
-
