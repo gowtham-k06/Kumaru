@@ -26,14 +26,16 @@ object AiProviderFactory {
         memoryStore: MemoryStore? = null,
         forceMock: Boolean = false,
         apiKey: String = BuildConfig.GEMINI_API_KEY,
-        model: String = BuildConfig.GEMINI_MODEL
+        model: String = BuildConfig.GEMINI_MODEL,
+        userContextProvider: (() -> String)? = null
     ): AiProvider {
         Log.i(TAG, "KUMARU FACTORY MODEL = $model")
         return if (!forceMock && apiKey.isNotBlank()) {
             GeminiAiProvider(
                 apiKey = apiKey,
                 model = model,
-                memoryStore = memoryStore
+                memoryStore = memoryStore,
+                userContextProvider = userContextProvider
             )
         } else {
             MockAiProvider()

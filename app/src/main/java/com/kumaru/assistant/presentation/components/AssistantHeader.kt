@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -25,37 +27,42 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kumaru.assistant.core.state.AssistantState
-import com.kumaru.assistant.presentation.theme.AmberThinking
-import com.kumaru.assistant.presentation.theme.CyberViolet
-import com.kumaru.assistant.presentation.theme.ErrorCrimson
-import com.kumaru.assistant.presentation.theme.NeonCyan
-import com.kumaru.assistant.presentation.theme.SuccessEmerald
+import com.kumaru.assistant.presentation.theme.AccentPinkPrimary
+import com.kumaru.assistant.presentation.theme.GlassBorderLight
+import com.kumaru.assistant.presentation.theme.GlassSurfaceWhite
+import com.kumaru.assistant.presentation.theme.StateError
+import com.kumaru.assistant.presentation.theme.StateIdle
+import com.kumaru.assistant.presentation.theme.StateListening
+import com.kumaru.assistant.presentation.theme.StateSpeaking
+import com.kumaru.assistant.presentation.theme.StateThinking
 import com.kumaru.assistant.presentation.theme.TextPrimary
 import com.kumaru.assistant.presentation.theme.TextSecondary
 
 /**
- * Minimalist, futuristic header displaying the Kumaru brand, version badge,
- * and current dynamic assistant status indicator.
+ * Editorial header for Kumaru V0.2.3.
+ * Displays clean modern branding, live glass status pill, History, Profile, and New Chat actions.
  */
 @Composable
 fun AssistantHeader(
     state: AssistantState,
     onResetConversation: () -> Unit,
+    onOpenHistory: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val statusDotColor by animateColorAsState(
+    val statusColor by animateColorAsState(
         targetValue = when (state) {
-            AssistantState.IDLE -> SuccessEmerald
-            AssistantState.LISTENING -> NeonCyan
-            AssistantState.THINKING -> AmberThinking
-            AssistantState.SPEAKING -> CyberViolet
-            AssistantState.ERROR -> ErrorCrimson
+            AssistantState.IDLE -> StateIdle
+            AssistantState.LISTENING -> StateListening
+            AssistantState.THINKING -> StateThinking
+            AssistantState.SPEAKING -> StateSpeaking
+            AssistantState.ERROR -> StateError
         },
         label = "HeaderStatusColor"
     )
@@ -63,84 +70,164 @@ fun AssistantHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 18.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "KUMARU",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 2.sp,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0x2200E5FF))
-                        .border(0.5.dp, Color(0x5500E5FF), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
+        // Left: Kumaru Brand & Identity + Profile shortcut
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { onOpenProfile() }
+        ) {
+            // Stylized C / Kumaru emblem badge
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .shadow(elevation = 2.dp, shape = CircleShape, ambientColor = Color(0x15000000))
+                    .clip(CircleShape)
+                    .background(GlassSurfaceWhite)
+                    .border(1.dp, GlassBorderLight, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                KumaruMiniOrb(size = 20.dp)
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "V0.2.1",
-                        fontSize = 10.sp,
+                        text = "KUMARU",
+                        fontSize = 16.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = NeonCyan,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.5.sp,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0x1FE05697))
+                            .border(0.5.dp, Color(0x3DE05697), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                    ) {
+                        Text(
+                            text = "AI V0.2.3",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentPinkPrimary,
+                            letterSpacing = 0.4.sp
+                        )
+                    }
+                }
+                Text(
+                    text = "Personal Assistant",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = TextSecondary
+                )
+            }
+        }
+
+        // Right Action Bar: History, Status Pill, New Chat, Profile
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // History Icon Button
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .shadow(elevation = 1.dp, shape = CircleShape, ambientColor = Color(0x10000000))
+                    .clip(CircleShape)
+                    .background(GlassSurfaceWhite)
+                    .border(1.dp, GlassBorderLight, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(
+                    onClick = onOpenHistory,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.History,
+                        contentDescription = "Conversation History",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
-            Text(
-                text = "Personal AI Assistant",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Normal,
-                color = TextSecondary
-            )
-        }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Live state chip
+            // Glass Status Pill
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0x14FFFFFF))
-                    .border(0.5.dp, Color(0x28FFFFFF), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                    .shadow(elevation = 1.dp, shape = RoundedCornerShape(20.dp), ambientColor = Color(0x10000000))
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(GlassSurfaceWhite)
+                    .border(1.dp, GlassBorderLight, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.5.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(7.dp)
+                            .size(6.5.dp)
                             .clip(CircleShape)
-                            .background(statusDotColor)
+                            .background(statusColor)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text = state.label.uppercase(),
-                        fontSize = 11.sp,
+                        fontSize = 9.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.8.sp,
+                        letterSpacing = 0.5.sp,
                         color = TextPrimary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Clear history button
-            IconButton(
-                onClick = onResetConversation,
-                modifier = Modifier.size(36.dp)
+            // New Chat / Reset
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .shadow(elevation = 1.dp, shape = CircleShape, ambientColor = Color(0x10000000))
+                    .clip(CircleShape)
+                    .background(GlassSurfaceWhite)
+                    .border(1.dp, GlassBorderLight, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Reset Conversation",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
+                IconButton(
+                    onClick = onResetConversation,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = "New Conversation",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+
+            // Profile Button
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .shadow(elevation = 1.dp, shape = CircleShape, ambientColor = Color(0x10000000))
+                    .clip(CircleShape)
+                    .background(GlassSurfaceWhite)
+                    .border(1.dp, GlassBorderLight, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(
+                    onClick = onOpenProfile,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PersonOutline,
+                        contentDescription = "User Profile",
+                        tint = AccentPinkPrimary,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
             }
         }
     }

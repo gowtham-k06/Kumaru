@@ -2,11 +2,17 @@ package com.kumaru.assistant.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kumaru.assistant.KumaruApplication
 import com.kumaru.assistant.core.model.ConversationMessage
+import com.kumaru.assistant.core.model.ConversationSession
 import com.kumaru.assistant.core.model.MessageRole
+import com.kumaru.assistant.core.model.UserProfile
 import com.kumaru.assistant.core.state.AssistantState
 import com.kumaru.assistant.data.ai.AiProviderFactory
+import com.kumaru.assistant.data.history.ConversationHistoryRepository
 import com.kumaru.assistant.data.memory.InMemoryMemoryStore
+import com.kumaru.assistant.data.profile.UserProfileRepository
+import com.kumaru.assistant.data.prompts.SuggestedPromptRepository
 import com.kumaru.assistant.data.tools.DefaultToolExecutor
 import com.kumaru.assistant.data.voice.PushToTalkVoiceInput
 import com.kumaru.assistant.data.voice.SystemVoiceOutput
@@ -22,17 +28,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /**
  * Core coordinator managing the Kumaru assistant state machine:
  * IDLE -> LISTENING -> THINKING -> SPEAKING -> IDLE
  *
  * Coordinates multi-segment voice input, 15-second inactivity timeouts,
- * text input, multi-turn Gemini reasoning, and native TextToSpeech vocal playback.
+ * text input, multi-turn Gemini reasoning, local session history, and personalization profile.
  */
 class AssistantViewModel(
     private val memoryStore: MemoryStore = InMemoryMemoryStore(),
-    private val aiProvider: AiProvider = AiProviderFactory.create(memoryStore),
+    private val userProfileRepository: UserProfileRepository = UserProfileRepository.getInstance(KumaruApplication.appContext),
+    private val conversationHistoryRepository: ConversationHistoryRepository = ConversationHistoryRepository.getInstance(KumaruApplication.appContext),
+    private val aiProvider: AiProvider = AiProviderFactory.create(
+        memoryStore = memoryStore,
+        userContextProvider = { userProfileRepository.getPersonalizationPromptContext() }
+    ),
     private val voiceInput: VoiceInput = PushToTalkVoiceInput(),
     private val voiceOutput: VoiceOutput = SystemVoiceOutput(),
     private val toolExecutor: ToolExecutor = DefaultToolExecutor()
@@ -44,6 +56,9 @@ class AssistantViewModel(
 
     private val _uiState = MutableStateFlow(AssistantUiState())
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
+
+    val userProfile: StateFlow<UserProfile> = userProfileRepository.userProfile
+    val conversationSessions: StateFlow<List<ConversationSession>> = conversationHistoryRepository.sessions
 
     private var activeProcessingJob: Job? = null
     private var inactivityTimerJob: Job? = null
@@ -112,9 +127,18 @@ class AssistantViewModel(
     }
 
     /**
+     * Instantly rotates the curated prompt suggestions with a smooth transition.
+     */
+    fun refreshSuggestedPrompts() {
+        _uiState.update {
+            it.copy(suggestedPrompts = SuggestedPromptRepository.getCuratedSuggestions(4))
+        }
+    }
+
+    /**
      * Shared message pipeline for both Voice and Text input.
      *
-     * User Input -> Memory Store -> Gemini Reasoning -> Memory Store -> Vocal TTS -> IDLE
+     * User Input -> Memory Store -> Gemini Reasoning -> Memory Store -> Vocal TTS -> Session History -> IDLE
      */
     fun submitUserMessage(input: String) {
         val trimmedInput = input.trim()
@@ -144,17 +168,19 @@ class AssistantViewModel(
                 )
                 memoryStore.saveMessage(userMessage)
 
+                val updatedMessagesWithUser = _uiState.value.messages + userMessage
+
                 // 2. Transition to THINKING
                 _uiState.update {
                     it.copy(
                         assistantState = AssistantState.THINKING,
-                        messages = it.messages + userMessage,
+                        messages = updatedMessagesWithUser,
                         currentInput = "",
                         errorMessage = null
                     )
                 }
 
-                // 3. Obtain AI response (Gemini REST API with session context)
+                // 3. Obtain AI response (Gemini REST API with session context + user profile)
                 val responseText = aiProvider.generateResponse(trimmedInput)
 
                 // 4. Record Assistant Message
@@ -164,18 +190,31 @@ class AssistantViewModel(
                 )
                 memoryStore.saveMessage(assistantMessage)
 
-                // 5. Transition to SPEAKING
+                val finalMessages = updatedMessagesWithUser + assistantMessage
+
+                // 5. Persist to Local Conversation History
+                val sessionTitle = finalMessages.firstOrNull { it.role == MessageRole.USER }?.text?.take(40)
+                    ?: "Conversation with Kumaru"
+                val session = ConversationSession(
+                    id = _uiState.value.activeSessionId,
+                    title = sessionTitle,
+                    updatedAt = System.currentTimeMillis(),
+                    messages = finalMessages
+                )
+                conversationHistoryRepository.saveSession(session)
+
+                // 6. Transition to SPEAKING
                 _uiState.update {
                     it.copy(
                         assistantState = AssistantState.SPEAKING,
-                        messages = it.messages + assistantMessage
+                        messages = finalMessages
                     )
                 }
 
-                // 6. Voice output synthesis via native TextToSpeech
+                // 7. Voice output synthesis via native TextToSpeech
                 voiceOutput.speak(responseText)
 
-                // 7. Transition back to IDLE
+                // 8. Transition back to IDLE
                 _uiState.update {
                     it.copy(assistantState = AssistantState.IDLE)
                 }
@@ -261,7 +300,30 @@ class AssistantViewModel(
     }
 
     /**
-     * Clears all session messages and resets state to IDLE.
+     * Loads an existing conversation session from History to resume chatting.
+     */
+    fun loadSession(session: ConversationSession) {
+        cancelInactivityTimer()
+        interruptSpeaking()
+        viewModelScope.launch {
+            memoryStore.clearHistory()
+            for (msg in session.messages) {
+                memoryStore.saveMessage(msg)
+            }
+            _uiState.update {
+                it.copy(
+                    assistantState = AssistantState.IDLE,
+                    messages = session.messages,
+                    activeSessionId = session.id,
+                    currentInput = "",
+                    errorMessage = null
+                )
+            }
+        }
+    }
+
+    /**
+     * Clears all session messages and starts a brand new conversation session.
      */
     fun resetConversation() {
         cancelInactivityTimer()
@@ -272,11 +334,36 @@ class AssistantViewModel(
                 AssistantUiState(
                     assistantState = AssistantState.IDLE,
                     messages = emptyList(),
+                    activeSessionId = UUID.randomUUID().toString(),
                     currentInput = "",
-                    errorMessage = null
+                    errorMessage = null,
+                    suggestedPrompts = SuggestedPromptRepository.getCuratedSuggestions(4)
                 )
             }
         }
+    }
+
+    /**
+     * Deletes a conversation from history.
+     */
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            conversationHistoryRepository.deleteSession(sessionId)
+            if (_uiState.value.activeSessionId == sessionId) {
+                resetConversation()
+            }
+        }
+    }
+
+    /**
+     * Updates user profile preferences.
+     */
+    fun saveUserProfile(profile: UserProfile) {
+        userProfileRepository.saveProfile(profile)
+    }
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        userProfileRepository.setOnboardingCompleted(completed)
     }
 
     override fun onCleared() {

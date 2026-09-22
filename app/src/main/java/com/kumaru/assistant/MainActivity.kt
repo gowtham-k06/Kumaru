@@ -7,9 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.kumaru.assistant.presentation.navigation.KumaruNavHost
+import com.kumaru.assistant.presentation.theme.BackgroundWarmBase
 import com.kumaru.assistant.presentation.theme.KumaruTheme
-import com.kumaru.assistant.presentation.theme.VoidBlack
-import com.kumaru.assistant.presentation.ui.AssistantScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,9 +19,9 @@ class MainActivity : ComponentActivity() {
             KumaruTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = VoidBlack
+                    color = BackgroundWarmBase
                 ) {
-                    AssistantScreen()
+                    KumaruNavHost()
                 }
             }
         }

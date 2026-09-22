@@ -30,7 +30,8 @@ import java.net.UnknownHostException
 class GeminiAiProvider(
     private val apiKey: String = BuildConfig.GEMINI_API_KEY,
     private val model: String = BuildConfig.GEMINI_MODEL,
-    private val memoryStore: MemoryStore? = null
+    private val memoryStore: MemoryStore? = null,
+    private val userContextProvider: (() -> String)? = null
 ) : AiProvider {
 
     init {
@@ -130,9 +131,10 @@ class GeminiAiProvider(
         val root = JSONObject()
 
         // 1. System Instruction (using standard camelCase systemInstruction)
+        val personalizedInstruction = SYSTEM_INSTRUCTION + (userContextProvider?.invoke() ?: "")
         val systemInstructionObj = JSONObject().apply {
             val partsArray = JSONArray().apply {
-                put(JSONObject().put("text", SYSTEM_INSTRUCTION))
+                put(JSONObject().put("text", personalizedInstruction))
             }
             put("parts", partsArray)
         }
