@@ -181,13 +181,13 @@ fun ProfileScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Outlined.Edit,
-                                        contentDescription = "Edit Profile",
+                                        contentDescription = "Edit my setup",
                                         tint = AccentPinkPrimary,
                                         modifier = Modifier.size(13.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Edit",
+                                        text = "Edit Setup",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = AccentPinkPrimary
@@ -323,8 +323,8 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         val specs = listOf(
-                            Pair("Version", "V0.2.3 (Editorial Glass)"),
-                            Pair("Reasoning Brain", "Google Gemini 2.5 Flash Lite"),
+                            Pair("Version", "V0.2.4 (Shareable Build)"),
+                            Pair("Reasoning Brain", "Google Gemini (Private Test Build)"),
                             Pair("Vocal Engine", "Native Speech Recognition & TTS"),
                             Pair("Privacy", "Local-first on-device context")
                         )
@@ -362,6 +362,37 @@ fun ProfileScreen(
                         modifier = Modifier.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // Edit my setup
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onEditProfile() }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = null,
+                                tint = AccentPinkPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Edit my setup",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "Update your name, tone, focus areas & notes",
+                                    fontSize = 11.5.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+
                         // Replay Onboarding
                         Row(
                             modifier = Modifier
@@ -386,7 +417,7 @@ fun ProfileScreen(
                                     color = TextPrimary
                                 )
                                 Text(
-                                    text = "Review Kumaru duties and questionnaire",
+                                    text = "Review Kumaru introduction and capabilities",
                                     fontSize = 11.5.sp,
                                     color = TextSecondary
                                 )

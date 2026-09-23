@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 1. Ambient Orb Halo Glow -->
+    <path
+        android:pathData="M54,53m-38,0a38,38 0,1 1,76 0a38,38 0,1 1,-76 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="53"
+                android:gradientRadius="38">
+                <item android:offset="0.0" android:color="#50FF5B99" />
+                <item android:offset="0.5" android:color="#2838BDF8" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 2. Soft Floor Reflection -->
+    <path
+        android:pathData="M54,84m-20,0a20,4 0,1 1,40 0a20,4 0,1 1,-40 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="84"
+                android:gradientRadius="20">
+                <item android:offset="0.0" android:color="#40F472B6" />
+                <item android:offset="0.6" android:color="#2538BDF8" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3. Main 3D Spherical Liquid Body (radius = 26dp) -->
+    <path
+        android:pathData="M54,53m-26,0a26,26 0,1 1,52 0a26,26 0,1 1,-52 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="27"
+                android:endX="54"
+                android:endY="79">
+                <item android:offset="0.0" android:color="#FFFF5B99" />
+                <item android:offset="0.25" android:color="#FFF472B6" />
+                <item android:offset="0.50" android:color="#FFC084FC" />
+                <item android:offset="0.80" android:color="#FF38BDF8" />
+                <item android:offset="1.0" android:color="#FF2DD4BF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 4. 3D Spherical Depth Vignette / Internal Volume Shadow -->
+    <path
+        android:pathData="M54,53m-26,0a26,26 0,1 1,52 0a26,26 0,1 1,-52 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="53"
+                android:gradientRadius="26">
+                <item android:offset="0.0" android:color="#00000000" />
+                <item android:offset="0.75" android:color="#0A000000" />
+                <item android:offset="1.0" android:color="#35000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 5. Bottom Cyan Internal Caustics & Light Refraction -->
+    <path
+        android:pathData="M54,66m-16,0a16,9 0,1 1,32 0a16,9 0,1 1,-32 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="66"
+                android:gradientRadius="16">
+                <item android:offset="0.0" android:color="#D038BDF8" />
+                <item android:offset="0.6" android:color="#602DD4BF" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 6. Center Internal Luminous Core -->
+    <path
+        android:pathData="M54,50m-13,0a13,13 0,1 1,26 0a13,13 0,1 1,-26 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="50"
+                android:gradientRadius="13">
+                <item android:offset="0.0" android:color="#70FFFFFF" />
+                <item android:offset="0.6" android:color="#20FFFFFF" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 7. Primary 3D Specular Highlight (Curved Top-Left Oval) -->
+    <group
+        android:pivotX="45"
+        android:pivotY="42"
+        android:rotation="-30">
+        <path
+            android:pathData="M45,42m-10,0a10,5 0,1 1,20 0a10,5 0,1 1,-20 0">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="45"
+                    android:centerY="42"
+                    android:gradientRadius="10">
+                    <item android:offset="0.0" android:color="#F5FFFFFF" />
+                    <item android:offset="0.5" android:color="#90FFFFFF" />
+                    <item android:offset="1.0" android:color="#00FFFFFF" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+
+    <!-- 8. Secondary Top-Right Specular Dot -->
+    <path
+        android:pathData="M65,44m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="65"
+                android:centerY="44"
+                android:gradientRadius="3">
+                <item android:offset="0.0" android:color="#B0FFFFFF" />
+                <item android:offset="1.0" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 9. Fine Outer Glass Refraction Rim -->
+    <path
+        android:pathData="M54,53m-26,0a26,26 0,1 1,52 0a26,26 0,1 1,-52 0"
+        android:strokeWidth="1"
+        android:strokeColor="#80FFFFFF"
+        android:fillColor="#00000000" />
+
+</vector>

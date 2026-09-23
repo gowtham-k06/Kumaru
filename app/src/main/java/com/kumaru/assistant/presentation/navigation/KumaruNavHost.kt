@@ -21,12 +21,13 @@ enum class KumaruScreen {
     ONBOARDING,
     MAIN_ASSISTANT,
     PROFILE,
-    HISTORY
+    HISTORY,
+    EDIT_SETUP
 }
 
 /**
  * Root Navigation Host coordinating state-driven transitions between
- * Onboarding, Main Assistant, Profile, and History.
+ * Onboarding, Main Assistant, Profile, History, and Edit Setup.
  */
 @Composable
 fun KumaruNavHost(
@@ -54,10 +55,23 @@ fun KumaruNavHost(
             KumaruScreen.ONBOARDING -> {
                 OnboardingScreen(
                     initialProfile = userProfile,
+                    startInSetup = false,
                     onOnboardingFinished = { completedProfile ->
                         viewModel.saveUserProfile(completedProfile)
                         viewModel.setOnboardingCompleted(true)
                         currentScreen = KumaruScreen.MAIN_ASSISTANT
+                    }
+                )
+            }
+
+            KumaruScreen.EDIT_SETUP -> {
+                OnboardingScreen(
+                    initialProfile = userProfile,
+                    startInSetup = true,
+                    onCancelEdit = { currentScreen = KumaruScreen.PROFILE },
+                    onOnboardingFinished = { updatedProfile ->
+                        viewModel.saveUserProfile(updatedProfile)
+                        currentScreen = KumaruScreen.PROFILE
                     }
                 )
             }
@@ -74,7 +88,7 @@ fun KumaruNavHost(
                 ProfileScreen(
                     userProfile = userProfile,
                     onBack = { currentScreen = KumaruScreen.MAIN_ASSISTANT },
-                    onEditProfile = { currentScreen = KumaruScreen.ONBOARDING },
+                    onEditProfile = { currentScreen = KumaruScreen.EDIT_SETUP },
                     onReplayOnboarding = { currentScreen = KumaruScreen.ONBOARDING },
                     onClearHistory = {
                         viewModel.resetConversation()
