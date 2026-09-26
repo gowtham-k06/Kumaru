@@ -56,11 +56,14 @@ object SuggestedPromptRepository {
         SuggestedPrompt("How can I build better conversation skills?", PromptCategory.LIFE, Icons.Outlined.SentimentSatisfiedAlt),
         SuggestedPrompt("Quick 5-minute breathing exercise for calmness", PromptCategory.LIFE, Icons.Outlined.WbSunny),
 
-        // Fun & Tamil/Regional
+        // Fun & Tamil/Regional (Derived from authentic DM conversation dynamic)
+        SuggestedPrompt("Rapid quick questions?", PromptCategory.FUN, Icons.Outlined.SentimentSatisfiedAlt),
+        SuggestedPrompt("Mountains or beach?", PromptCategory.FUN, Icons.Outlined.Lightbulb),
+        SuggestedPrompt("Vela mokkaya pogudha", PromptCategory.FUN, Icons.Outlined.SentimentSatisfiedAlt),
+        SuggestedPrompt("What kind of things actually make your day better?", PromptCategory.LIFE, Icons.Outlined.SentimentSatisfiedAlt),
         SuggestedPrompt("Enna Kumaru, epdi irukinga?", PromptCategory.FUN, Icons.Outlined.SentimentSatisfiedAlt),
+        SuggestedPrompt("Namba vena onnu pannalam", PromptCategory.CREATIVE, Icons.Outlined.Lightbulb),
         SuggestedPrompt("Tell me a clever mind-bending riddle", PromptCategory.FUN, Icons.Outlined.SentimentSatisfiedAlt),
-        SuggestedPrompt("What would happen if gravity inverted for 5 seconds?", PromptCategory.FUN, Icons.Outlined.Lightbulb),
-        SuggestedPrompt("Tell me a witty joke with a punchline", PromptCategory.FUN, Icons.Outlined.SentimentSatisfiedAlt),
 
         // Tech & Futuristic
         SuggestedPrompt("What makes Jetpack Compose so fast?", PromptCategory.TECH, Icons.Outlined.RocketLaunch),

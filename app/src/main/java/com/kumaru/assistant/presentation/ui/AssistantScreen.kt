@@ -113,12 +113,14 @@ fun AssistantScreen(
                     .imePadding(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Top Header: Branding, AI v0.2.3 Pill, State Capsule, History & Profile shortcuts
+                // Top Header: Branding, AI v0.2.5 Pill, State Capsule, History & Profile shortcuts
                 AssistantHeader(
                     state = uiState.assistantState,
                     onResetConversation = { viewModel.resetConversation() },
                     onOpenHistory = onOpenHistory,
-                    onOpenProfile = onOpenProfile
+                    onOpenProfile = onOpenProfile,
+                    activeIdentity = uiState.activeIdentity,
+                    currentMode = uiState.currentMode
                 )
 
                 // Editorial Title

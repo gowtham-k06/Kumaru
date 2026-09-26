@@ -12,4 +12,13 @@ interface AiProvider {
      * @return Generated assistant response text.
      */
     suspend fun generateResponse(input: String): String
+
+    /**
+     * Generates a response with dynamic, context-specific system instruction.
+     *
+     * @param input The text transcribed from user input.
+     * @param systemContext Compact tailored context constructed by KumaruEngine.
+     * @return Generated assistant response text.
+     */
+    suspend fun generateResponseWithContext(input: String, systemContext: String): String = generateResponse(input)
 }

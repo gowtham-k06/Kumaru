@@ -2,6 +2,7 @@ package com.kumaru.assistant.data.profile
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.kumaru.assistant.core.model.UserIdentity
 import com.kumaru.assistant.core.model.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,7 @@ class UserProfileRepository(context: Context) {
     companion object {
         private const val PREFS_NAME = "kumaru_user_profile"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        private const val KEY_USER_IDENTITY = "user_identity"
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_COMMUNICATION_STYLE = "communication_style"
         private const val KEY_PRIMARY_INTERESTS = "primary_interests"
@@ -40,14 +42,17 @@ class UserProfileRepository(context: Context) {
 
     fun loadProfile(): UserProfile {
         val completed = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
-        val name = prefs.getString(KEY_USER_NAME, "") ?: ""
-        val style = prefs.getString(KEY_COMMUNICATION_STYLE, "CASUAL") ?: "CASUAL"
+        val identityStr = prefs.getString(KEY_USER_IDENTITY, UserIdentity.GOWTHAM.name)
+        val identity = UserIdentity.fromString(identityStr)
+        val name = prefs.getString(KEY_USER_NAME, identity.displayName) ?: identity.displayName
+        val style = prefs.getString(KEY_COMMUNICATION_STYLE, identity.defaultTone) ?: identity.defaultTone
         val interests = prefs.getStringSet(KEY_PRIMARY_INTERESTS, emptySet()) ?: emptySet()
         val context = prefs.getString(KEY_PERSONAL_CONTEXT, "") ?: ""
         val memory = prefs.getString(KEY_MEMORY_PREFERENCE, "USEFUL") ?: "USEFUL"
 
         return UserProfile(
             isOnboardingCompleted = completed,
+            userIdentity = identity,
             userName = name,
             communicationStyle = style,
             primaryInterests = interests,
@@ -59,6 +64,7 @@ class UserProfileRepository(context: Context) {
     fun saveProfile(profile: UserProfile) {
         prefs.edit().apply {
             putBoolean(KEY_ONBOARDING_COMPLETED, profile.isOnboardingCompleted)
+            putString(KEY_USER_IDENTITY, profile.userIdentity.name)
             putString(KEY_USER_NAME, profile.userName)
             putString(KEY_COMMUNICATION_STYLE, profile.communicationStyle)
             putStringSet(KEY_PRIMARY_INTERESTS, profile.primaryInterests)
@@ -67,6 +73,16 @@ class UserProfileRepository(context: Context) {
             apply()
         }
         _userProfile.value = profile
+    }
+
+    fun switchUserIdentity(newIdentity: UserIdentity) {
+        val current = _userProfile.value
+        val updated = current.copy(
+            userIdentity = newIdentity,
+            userName = newIdentity.displayName,
+            communicationStyle = newIdentity.defaultTone
+        )
+        saveProfile(updated)
     }
 
     fun setOnboardingCompleted(completed: Boolean) {
@@ -86,8 +102,9 @@ class UserProfileRepository(context: Context) {
 
         val sb = StringBuilder()
         sb.append("\n\nUser Profile & Personal Preferences:")
+        sb.append("\n- Active User Identity: ${profile.userIdentity.displayName} (${profile.userIdentity.nickname})")
         if (profile.userName.isNotBlank()) {
-            sb.append("\n- User Name: ${profile.userName}")
+            sb.append("\n- Display Name: ${profile.userName}")
         }
         val styleDesc = when (profile.communicationStyle) {
             "CASUAL" -> "Casual, friendly, like a companion"

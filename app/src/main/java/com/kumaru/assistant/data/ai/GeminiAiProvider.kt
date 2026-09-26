@@ -55,7 +55,14 @@ class GeminiAiProvider(
             "- Keep answers brief and conversational unless the user specifically asks for deep detail."
     }
 
-    override suspend fun generateResponse(input: String): String = withContext(Dispatchers.IO) {
+    override suspend fun generateResponse(input: String): String {
+        return generateResponseWithContext(input, userContextProvider?.invoke() ?: "")
+    }
+
+    override suspend fun generateResponseWithContext(
+        input: String,
+        systemContext: String
+    ): String = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
             Log.e(TAG, "Gemini API key is blank or unconfigured in BuildConfig")
             return@withContext "Gemini authentication failed. Please check your API key."
@@ -69,7 +76,7 @@ class GeminiAiProvider(
         try {
             val activeModel = if (model.isNotBlank()) model else "gemini-3.5-flash-lite"
             val endpointUrl = "$BASE_URL/$activeModel:generateContent?key=$apiKey"
-            val requestPayload = buildRequestBody(trimmedInput)
+            val requestPayload = buildRequestBody(trimmedInput, systemContext)
             val sanitizedEndpoint = "$BASE_URL/$activeModel:generateContent"
 
             Log.i(TAG, "KUMARU GEMINI MODEL = $activeModel")
@@ -127,14 +134,19 @@ class GeminiAiProvider(
         }
     }
 
-    private suspend fun buildRequestBody(currentInput: String): String {
+    private suspend fun buildRequestBody(currentInput: String, systemContext: String): String {
         val root = JSONObject()
 
         // 1. System Instruction (using standard camelCase systemInstruction)
-        val personalizedInstruction = SYSTEM_INSTRUCTION + (userContextProvider?.invoke() ?: "")
+        val finalInstruction = if (systemContext.isNotBlank()) {
+            systemContext
+        } else {
+            SYSTEM_INSTRUCTION + (userContextProvider?.invoke() ?: "")
+        }
+
         val systemInstructionObj = JSONObject().apply {
             val partsArray = JSONArray().apply {
-                put(JSONObject().put("text", personalizedInstruction))
+                put(JSONObject().put("text", finalInstruction))
             }
             put("parts", partsArray)
         }

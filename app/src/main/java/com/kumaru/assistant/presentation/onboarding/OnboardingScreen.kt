@@ -65,6 +65,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kumaru.assistant.core.model.UserIdentity
 import com.kumaru.assistant.core.model.UserProfile
 import com.kumaru.assistant.core.state.AssistantState
 import com.kumaru.assistant.presentation.components.GlassCard
@@ -107,8 +108,9 @@ fun OnboardingScreen(
     // Steps: 0..2 = Intro, 3..6 = Setup Q1..Q4, 7 = Final Screen
     var step by remember { mutableIntStateOf(if (startInSetup) 3 else 0) }
 
-    var userName by remember { mutableStateOf(initialProfile.userName) }
-    var communicationStyle by remember { mutableStateOf(initialProfile.communicationStyle.ifBlank { "CASUAL" }) }
+    var selectedIdentity by remember { mutableStateOf(initialProfile.userIdentity) }
+    var userName by remember { mutableStateOf(initialProfile.userName.ifBlank { selectedIdentity.displayName }) }
+    var communicationStyle by remember { mutableStateOf(initialProfile.communicationStyle.ifBlank { selectedIdentity.defaultTone }) }
     var primaryInterests by remember {
         mutableStateOf(
             if (initialProfile.primaryInterests.isNotEmpty()) {
@@ -141,7 +143,8 @@ fun OnboardingScreen(
         keyboardController?.hide()
         val completedProfile = UserProfile(
             isOnboardingCompleted = true,
-            userName = userName.trim(),
+            userIdentity = selectedIdentity,
+            userName = userName.trim().ifBlank { selectedIdentity.displayName },
             communicationStyle = communicationStyle,
             primaryInterests = primaryInterests,
             personalContext = personalContext.trim(),
@@ -368,11 +371,11 @@ fun OnboardingScreen(
                         }
 
                         // ==========================================
-                        // SETUP QUESTION 1: Name (Required)
+                        // SETUP QUESTION 1: Identity Selection (Who is using Kumaru?)
                         // ==========================================
                         3 -> {
                             Text(
-                                text = "First things first",
+                                text = "Identity",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = AccentPinkPrimary,
@@ -380,51 +383,34 @@ fun OnboardingScreen(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "What should I call you?",
+                                text = "Who is using Kumaru?",
                                 fontSize = 25.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center,
                                 color = TextPrimary
                             )
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Kumaru adapts its dynamic tone, rapid question games, and memory to your identity.",
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                                color = TextSecondary,
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                            GlassCard(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(22.dp),
-                                backgroundColor = GlassSurfaceWhite
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)
-                                ) {
-                                    if (userName.isEmpty()) {
-                                        Text(
-                                            text = "Enter your preferred name...",
-                                            fontSize = 16.sp,
-                                            color = TextMuted
-                                        )
+                            UserIdentity.values().forEach { identity ->
+                                val isSelected = selectedIdentity == identity
+                                SelectionOptionCard(
+                                    title = identity.displayName,
+                                    subtitle = "${identity.subtitle} • Tone: ${identity.defaultTone}",
+                                    isSelected = isSelected,
+                                    onClick = {
+                                        selectedIdentity = identity
+                                        userName = identity.displayName
+                                        communicationStyle = identity.defaultTone
                                     }
-                                    BasicTextField(
-                                        value = userName,
-                                        onValueChange = { userName = it },
-                                        textStyle = TextStyle(
-                                            color = TextPrimary,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Medium
-                                        ),
-                                        cursorBrush = SolidColor(AccentPinkPrimary),
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(
-                                            capitalization = KeyboardCapitalization.Words,
-                                            imeAction = ImeAction.Done
-                                        ),
-                                        keyboardActions = KeyboardActions(
-                                            onDone = {
-                                                if (userName.isNotBlank()) nextStep()
-                                            }
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
+                                )
                             }
                         }
 

@@ -18,9 +18,16 @@ data class ConversationSession(
  */
 data class UserProfile(
     val isOnboardingCompleted: Boolean = false,
-    val userName: String = "",
+    val userIdentity: UserIdentity = UserIdentity.GOWTHAM,
+    val userName: String = "Gowtham",
     val communicationStyle: String = "CASUAL", // CASUAL, FOCUSED, PLAYFUL, BALANCED
     val primaryInterests: Set<String> = emptySet(), // IDEAS, WORK, LEARNING, LIFE, CONVERSATION, ORGANIZATION
     val personalContext: String = "",
     val memoryPreference: String = "USEFUL" // MINIMAL, USEFUL, PERSONAL
-)
+) {
+    val displayName: String
+        get() = userName.ifBlank { userIdentity.displayName }
+
+    val defaultTone: String
+        get() = communicationStyle.ifBlank { userIdentity.defaultTone }
+}

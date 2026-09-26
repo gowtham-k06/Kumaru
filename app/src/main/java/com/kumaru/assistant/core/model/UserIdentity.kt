@@ -7,17 +7,23 @@ package com.kumaru.assistant.core.model
 enum class UserIdentity(
     val displayName: String,
     val nickname: String,
-    val defaultTone: String
+    val subtitle: String,
+    val defaultTone: String,
+    val voiceProfileHint: String
 ) {
     GOWTHAM(
         displayName = "Gowtham",
         nickname = "Gowtham",
-        defaultTone = "BALANCED"
+        subtitle = "Builder & Analytical Thinker",
+        defaultTone = "BALANCED",
+        voiceProfileHint = "companion_gowtham_v1"
     ),
     PAVI(
         displayName = "Pavi",
         nickname = "Pavs",
-        defaultTone = "PLAYFUL"
+        subtitle = "Pavs • Playful & Expressive",
+        defaultTone = "PLAYFUL",
+        voiceProfileHint = "companion_pavi_v1"
     );
 
     companion object {
