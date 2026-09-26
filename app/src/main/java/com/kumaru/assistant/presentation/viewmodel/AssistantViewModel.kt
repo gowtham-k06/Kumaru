@@ -5,18 +5,24 @@ import androidx.lifecycle.viewModelScope
 import com.kumaru.assistant.KumaruApplication
 import com.kumaru.assistant.core.model.ConversationMessage
 import com.kumaru.assistant.core.model.ConversationSession
+import com.kumaru.assistant.core.model.InteractionMode
+import com.kumaru.assistant.core.model.KumaruResponse
+import com.kumaru.assistant.core.model.MemoryItem
 import com.kumaru.assistant.core.model.MessageRole
+import com.kumaru.assistant.core.model.UserIdentity
 import com.kumaru.assistant.core.model.UserProfile
 import com.kumaru.assistant.core.state.AssistantState
 import com.kumaru.assistant.data.ai.AiProviderFactory
 import com.kumaru.assistant.data.history.ConversationHistoryRepository
 import com.kumaru.assistant.data.memory.InMemoryMemoryStore
+import com.kumaru.assistant.data.memory.PersistentMemoryStore
 import com.kumaru.assistant.data.profile.UserProfileRepository
 import com.kumaru.assistant.data.prompts.SuggestedPromptRepository
 import com.kumaru.assistant.data.tools.DefaultToolExecutor
 import com.kumaru.assistant.data.voice.PushToTalkVoiceInput
 import com.kumaru.assistant.data.voice.SystemVoiceOutput
 import com.kumaru.assistant.domain.ai.AiProvider
+import com.kumaru.assistant.domain.engine.KumaruEngine
 import com.kumaru.assistant.domain.memory.MemoryStore
 import com.kumaru.assistant.domain.tools.ToolExecutor
 import com.kumaru.assistant.domain.voice.VoiceInput
@@ -35,30 +41,43 @@ import java.util.UUID
  * IDLE -> LISTENING -> THINKING -> SPEAKING -> IDLE
  *
  * Coordinates multi-segment voice input, 15-second inactivity timeouts,
- * text input, multi-turn Gemini reasoning, local session history, and personalization profile.
+ * text input, KumaruEngine personality orchestration, local session history, and personalization profile.
  */
 class AssistantViewModel(
-    private val memoryStore: MemoryStore = InMemoryMemoryStore(),
+    private val memoryStore: MemoryStore = PersistentMemoryStore.getInstance(KumaruApplication.appContext),
     private val userProfileRepository: UserProfileRepository = UserProfileRepository.getInstance(KumaruApplication.appContext),
     private val conversationHistoryRepository: ConversationHistoryRepository = ConversationHistoryRepository.getInstance(KumaruApplication.appContext),
     private val aiProvider: AiProvider = AiProviderFactory.create(
+        memoryStore = memoryStore
+    ),
+    private val toolExecutor: ToolExecutor = DefaultToolExecutor(),
+    private val kumaruEngine: KumaruEngine = KumaruEngine(
+        aiProvider = aiProvider,
         memoryStore = memoryStore,
-        userContextProvider = { userProfileRepository.getPersonalizationPromptContext() }
+        toolExecutor = toolExecutor
     ),
     private val voiceInput: VoiceInput = PushToTalkVoiceInput(),
-    private val voiceOutput: VoiceOutput = SystemVoiceOutput(),
-    private val toolExecutor: ToolExecutor = DefaultToolExecutor()
+    private val voiceOutput: VoiceOutput = SystemVoiceOutput()
 ) : ViewModel() {
 
     companion object {
         private const val INACTIVITY_TIMEOUT_MS = 15_000L
     }
 
-    private val _uiState = MutableStateFlow(AssistantUiState())
-    val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
-
     val userProfile: StateFlow<UserProfile> = userProfileRepository.userProfile
     val conversationSessions: StateFlow<List<ConversationSession>> = conversationHistoryRepository.sessions
+    val allMemories: StateFlow<List<MemoryItem>> = if (memoryStore is PersistentMemoryStore) {
+        memoryStore.memoriesFlow
+    } else {
+        MutableStateFlow(emptyList())
+    }
+
+    private val _uiState = MutableStateFlow(
+        AssistantUiState(
+            activeIdentity = userProfileRepository.userProfile.value.userIdentity
+        )
+    )
+    val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
 
     private var activeProcessingJob: Job? = null
     private var inactivityTimerJob: Job? = null
@@ -162,9 +181,11 @@ class AssistantViewModel(
         activeProcessingJob = viewModelScope.launch {
             try {
                 // 1. Record User Message
+                val currentIdentity = userProfile.value.userIdentity
                 val userMessage = ConversationMessage(
                     role = MessageRole.USER,
-                    text = trimmedInput
+                    text = trimmedInput,
+                    userIdentity = currentIdentity
                 )
                 memoryStore.saveMessage(userMessage)
 
@@ -180,13 +201,19 @@ class AssistantViewModel(
                     )
                 }
 
-                // 3. Obtain AI response (Gemini REST API with session context + user profile)
-                val responseText = aiProvider.generateResponse(trimmedInput)
+                // 3. Obtain AI response from KumaruEngine (Persona + Relationship + Memory + Mode + Gemini)
+                val kumaruResponse = kumaruEngine.processMessage(
+                    input = trimmedInput,
+                    userIdentity = currentIdentity,
+                    recentHistory = updatedMessagesWithUser
+                )
+                val responseText = kumaruResponse.text
 
                 // 4. Record Assistant Message
                 val assistantMessage = ConversationMessage(
                     role = MessageRole.KUMARU,
-                    text = responseText
+                    text = responseText,
+                    userIdentity = currentIdentity
                 )
                 memoryStore.saveMessage(assistantMessage)
 
@@ -207,7 +234,10 @@ class AssistantViewModel(
                 _uiState.update {
                     it.copy(
                         assistantState = AssistantState.SPEAKING,
-                        messages = finalMessages
+                        messages = finalMessages,
+                        currentMode = kumaruResponse.mode,
+                        activeIdentity = currentIdentity,
+                        lastResponse = kumaruResponse
                     )
                 }
 
@@ -337,9 +367,20 @@ class AssistantViewModel(
                     activeSessionId = UUID.randomUUID().toString(),
                     currentInput = "",
                     errorMessage = null,
+                    activeIdentity = userProfile.value.userIdentity,
                     suggestedPrompts = SuggestedPromptRepository.getCuratedSuggestions(4)
                 )
             }
+        }
+    }
+
+    /**
+     * Switches the active user identity between Gowtham and Pavi.
+     */
+    fun switchUserIdentity(identity: UserIdentity) {
+        userProfileRepository.switchUserIdentity(identity)
+        _uiState.update {
+            it.copy(activeIdentity = identity)
         }
     }
 
@@ -360,10 +401,37 @@ class AssistantViewModel(
      */
     fun saveUserProfile(profile: UserProfile) {
         userProfileRepository.saveProfile(profile)
+        _uiState.update {
+            it.copy(activeIdentity = profile.userIdentity)
+        }
     }
 
     fun setOnboardingCompleted(completed: Boolean) {
         userProfileRepository.setOnboardingCompleted(completed)
+    }
+
+    fun deleteMemory(id: String) {
+        viewModelScope.launch {
+            memoryStore.deleteMemory(id)
+        }
+    }
+
+    fun pinMemory(id: String, isPinned: Boolean) {
+        viewModelScope.launch {
+            memoryStore.pinMemory(id, isPinned)
+        }
+    }
+
+    fun updateMemory(item: MemoryItem) {
+        viewModelScope.launch {
+            memoryStore.updateMemory(item)
+        }
+    }
+
+    fun addMemory(item: MemoryItem) {
+        viewModelScope.launch {
+            memoryStore.addMemory(item)
+        }
     }
 
     override fun onCleared() {

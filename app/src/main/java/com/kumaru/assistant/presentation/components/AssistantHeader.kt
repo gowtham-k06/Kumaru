@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kumaru.assistant.core.model.InteractionMode
+import com.kumaru.assistant.core.model.UserIdentity
 import com.kumaru.assistant.core.state.AssistantState
 import com.kumaru.assistant.presentation.theme.AccentPinkPrimary
 import com.kumaru.assistant.presentation.theme.GlassBorderLight
@@ -45,8 +47,9 @@ import com.kumaru.assistant.presentation.theme.TextPrimary
 import com.kumaru.assistant.presentation.theme.TextSecondary
 
 /**
- * Editorial header for Kumaru V0.2.3.
- * Displays clean modern branding, live glass status pill, History, Profile, and New Chat actions.
+ * Editorial header for Kumaru V0.2.5.
+ * Displays clean modern branding, live glass status pill, active user identity,
+ * conversational mode indicator, History, Profile, and New Chat actions.
  */
 @Composable
 fun AssistantHeader(
@@ -54,6 +57,8 @@ fun AssistantHeader(
     onResetConversation: () -> Unit,
     onOpenHistory: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    activeIdentity: UserIdentity = UserIdentity.GOWTHAM,
+    currentMode: InteractionMode = InteractionMode.CASUAL,
     modifier: Modifier = Modifier
 ) {
     val statusColor by animateColorAsState(
@@ -112,7 +117,7 @@ fun AssistantHeader(
                             .padding(horizontal = 5.dp, vertical = 1.5.dp)
                     ) {
                         Text(
-                            text = "AI V0.2.3",
+                            text = "AI V0.2.6",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = AccentPinkPrimary,
@@ -121,7 +126,7 @@ fun AssistantHeader(
                     }
                 }
                 Text(
-                    text = "Personal Assistant",
+                    text = "${activeIdentity.displayName} • ${currentMode.name.lowercase().replaceFirstChar { it.uppercase() }}",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Normal,
                     color = TextSecondary

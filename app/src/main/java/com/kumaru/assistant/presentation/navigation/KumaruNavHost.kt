@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kumaru.assistant.presentation.history.HistoryScreen
+import com.kumaru.assistant.presentation.memory.MemoryScreen
 import com.kumaru.assistant.presentation.onboarding.OnboardingScreen
 import com.kumaru.assistant.presentation.profile.ProfileScreen
 import com.kumaru.assistant.presentation.ui.AssistantScreen
@@ -22,12 +23,13 @@ enum class KumaruScreen {
     MAIN_ASSISTANT,
     PROFILE,
     HISTORY,
-    EDIT_SETUP
+    EDIT_SETUP,
+    MEMORIES
 }
 
 /**
  * Root Navigation Host coordinating state-driven transitions between
- * Onboarding, Main Assistant, Profile, History, and Edit Setup.
+ * Onboarding, Main Assistant, Profile, History, Edit Setup, and Memory Vault.
  */
 @Composable
 fun KumaruNavHost(
@@ -35,6 +37,7 @@ fun KumaruNavHost(
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val conversationSessions by viewModel.conversationSessions.collectAsStateWithLifecycle()
+    val allMemories by viewModel.allMemories.collectAsStateWithLifecycle()
 
     var currentScreen by remember(userProfile.isOnboardingCompleted) {
         mutableStateOf(
@@ -90,9 +93,12 @@ fun KumaruNavHost(
                     onBack = { currentScreen = KumaruScreen.MAIN_ASSISTANT },
                     onEditProfile = { currentScreen = KumaruScreen.EDIT_SETUP },
                     onReplayOnboarding = { currentScreen = KumaruScreen.ONBOARDING },
+                    onOpenMemories = { currentScreen = KumaruScreen.MEMORIES },
+                    onSwitchIdentity = { identity ->
+                        viewModel.switchUserIdentity(identity)
+                    },
                     onClearHistory = {
                         viewModel.resetConversation()
-                        // Clears all history from repository
                     }
                 )
             }
@@ -112,6 +118,17 @@ fun KumaruNavHost(
                         currentScreen = KumaruScreen.MAIN_ASSISTANT
                     },
                     onBack = { currentScreen = KumaruScreen.MAIN_ASSISTANT }
+                )
+            }
+
+            KumaruScreen.MEMORIES -> {
+                MemoryScreen(
+                    memories = allMemories,
+                    onBack = { currentScreen = KumaruScreen.PROFILE },
+                    onDeleteMemory = { id -> viewModel.deleteMemory(id) },
+                    onPinMemory = { id, pinned -> viewModel.pinMemory(id, pinned) },
+                    onUpdateMemory = { item -> viewModel.updateMemory(item) },
+                    onAddMemory = { item -> viewModel.addMemory(item) }
                 )
             }
         }

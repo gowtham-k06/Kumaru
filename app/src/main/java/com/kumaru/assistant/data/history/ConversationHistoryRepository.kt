@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.kumaru.assistant.core.model.ConversationMessage
 import com.kumaru.assistant.core.model.ConversationSession
 import com.kumaru.assistant.core.model.MessageRole
+import com.kumaru.assistant.core.model.UserIdentity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,7 +68,15 @@ class ConversationHistoryRepository(context: Context) {
                     } catch (_: Exception) {
                         MessageRole.USER
                     }
-                    messages.add(ConversationMessage(id = mId, role = role, text = text, timestamp = timestamp))
+                    val identityStr = mObj.optString("userIdentity", null)
+                    val identity = if (!identityStr.isNullOrBlank()) {
+                        try {
+                            UserIdentity.valueOf(identityStr)
+                        } catch (_: Exception) {
+                            null
+                        }
+                    } else null
+                    messages.add(ConversationMessage(id = mId, role = role, text = text, timestamp = timestamp, userIdentity = identity))
                 }
                 list.add(ConversationSession(id = id, title = title, createdAt = createdAt, updatedAt = updatedAt, messages = messages))
             }
@@ -115,6 +124,9 @@ class ConversationHistoryRepository(context: Context) {
                         put("role", m.role.name)
                         put("text", m.text)
                         put("timestamp", m.timestamp)
+                        if (m.userIdentity != null) {
+                            put("userIdentity", m.userIdentity.name)
+                        }
                     }
                     mArray.put(mObj)
                 }
